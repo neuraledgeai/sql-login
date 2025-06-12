@@ -92,7 +92,12 @@ elif st.session_state.show_register:
         email = st.text_input("Email")
         password = st.text_input("Password", type="password")
         nickname = st.text_input("Nickname")
-        dob = st.date_input("Date of Birth")
+        dob = st.date_input(
+            "Date of Birth",
+            min_value=datetime.date(1900, 1, 1),        
+            max_value=datetime.date.today(),             
+            value=datetime.date(2000, 1, 1)              
+        )
         submitted = st.form_submit_button("Register")
 
         if submitted:

@@ -57,7 +57,7 @@ def login_user(email, password):
     if result and result[0] == password:
         st.session_state.current_user_email = email
         st.success("✅ Logged in successfully!")
-        st.experimental_rerun()
+        st.rerun()
     else:
         st.error("❌ Invalid email or password.")
 
@@ -82,7 +82,7 @@ if st.session_state.current_user_email:
 
     if st.button("🚪 Logout"):
         st.session_state.current_user_email = None
-        st.experimental_rerun()
+        st.rerun()
 
 # ---------- Registration Form ----------
 elif st.session_state.show_register:

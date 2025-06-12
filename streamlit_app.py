@@ -34,7 +34,7 @@ if st.session_state.current_user_email is None:
 
     # Registration link
     st.info("New here?")
-    st.page_link("pages/register_user.py", label="📝 Register", icon="➡️")
+    st.page_link("register_user.py", label="📝 Register", icon="➡️")
 else:
     st.success(f"Welcome, {st.session_state.current_user_email}!")
 

@@ -7,16 +7,6 @@ import datetime
 conn = sqlite3.connect("users.db", check_same_thread=False)
 cursor = conn.cursor()
 
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS users (
-    email TEXT PRIMARY KEY NOT NULL,
-    password TEXT NOT NULL,
-    nickname TEXT NOT NULL,
-    dob TEXT NOT NULL
-)
-""")
-conn.commit()
-
 # ---------- Email validation ----------
 def is_valid_email(email):
     pattern = r"^[\w\.-]+@[\w\.-]+\.\w+$"

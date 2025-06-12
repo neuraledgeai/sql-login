@@ -4,6 +4,7 @@ import os
 
 # Print the current working directory
 st.write("📁 Current Working Directory:", os.getcwd())
+st.page_link("pages/register_user.py", label="Page 1", icon="1️⃣")
 
 # Check if the file exists
 register_path = os.path.join("pages", "register_user.py")

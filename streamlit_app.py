@@ -1,5 +1,16 @@
 import streamlit as st
 import sqlite3
+import os
+
+# Print the current working directory
+st.write("📁 Current Working Directory:", os.getcwd())
+
+# Check if the file exists
+register_path = os.path.join("pages", "register_user.py")
+if os.path.exists(register_path):
+    st.success(f"✅ File found: {register_path}")
+else:
+    st.error(f"❌ File NOT found: {register_path}")
 
 # ---------- Connect to database ----------
 conn = sqlite3.connect("users.db", check_same_thread=False)

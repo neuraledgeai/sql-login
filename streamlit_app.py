@@ -100,6 +100,7 @@ elif st.session_state.show_register:
 
     if st.button("⬅️ Back to Login"):
         st.session_state.show_register = False
+        st.session_state.show_register = False
 
 # ---------- Login Form ----------
 else:
@@ -114,4 +115,5 @@ else:
             login_user(email, password)
 
     if st.button("📝 Register"):
+        st.session_state.show_register = True
         st.session_state.show_register = True

@@ -1,18 +1,28 @@
 import streamlit as st
 import sqlite3
+import re
 
-# Step 1: DB connection
-conn = sqlite3.connect("users.db")
+# ---------- Connect to database ----------
+conn = sqlite3.connect("users.db", check_same_thread=False)
 cursor = conn.cursor()
 
-# Step 2: Initialize session variable
+# ---------- Initialize session state ----------
 if "current_user_email" not in st.session_state:
     st.session_state.current_user_email = None
 
-# Step 3: User registration function (with validation)
+# ---------- Email validation function ----------
+def is_valid_email(email):
+    pattern = r"^[\w\.-]+@[\w\.-]+\.\w+$"
+    return re.match(pattern, email)
+
+# ---------- Register user function ----------
 def register_user(email, password, nickname, dob):
     if not email or not password or not nickname or not dob:
         st.error("All fields are required.")
+        return
+
+    if not is_valid_email(email):
+        st.error("Please enter a valid email address.")
         return
 
     if len(password) < 6:
@@ -35,7 +45,9 @@ def register_user(email, password, nickname, dob):
     except sqlite3.Error as e:
         st.error(f"Database error: {e}")
 
-# Step 4: Show registration form if not logged in
+# ---------- Main UI ----------
+st.title("👤 User Registration System")
+
 if st.session_state.current_user_email is None:
     st.header("Register")
     with st.form("register_form"):
@@ -48,17 +60,17 @@ if st.session_state.current_user_email is None:
         if submitted:
             register_user(email, password, nickname, str(dob))
 else:
-    # Step 5: User Dashboard
     st.success(f"Welcome, {st.session_state.current_user_email}!")
-    
-    # Fetch and show user info
+
+    # Show user info
     cursor.execute("SELECT nickname, dob FROM users WHERE email = ?", (st.session_state.current_user_email,))
     user_info = cursor.fetchone()
     if user_info:
         nickname, dob = user_info
-        st.markdown(f"**Nickname**: {nickname}")
-        st.markdown(f"**Date of Birth**: {dob}")
+        st.markdown(f"**Nickname:** {nickname}")
+        st.markdown(f"**Date of Birth:** {dob}")
 
+    # Logout button
     if st.button("Logout"):
         st.session_state.current_user_email = None
         st.experimental_rerun()

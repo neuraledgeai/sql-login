@@ -4,6 +4,21 @@ import datetime
 import firebase_admin 
 from firebase_admin import credentials, firestore
 
+import os
+
+# Get the current working directory
+cwd = os.getcwd()
+print(f"📂 Current Working Directory: {cwd}\n")
+
+# List all files and directories in the current directory
+files = os.listdir(cwd)
+
+# Print them
+print("📄 Files and Folders:")
+for file in files:
+    print(f" - {file}")
+
+
 # ---------- Firebase Setup ----------
 cred = credentials.Certificate("db_key.json")  # Your Firebase service account key
 try:

@@ -4,115 +4,72 @@ import datetime
 import firebase_admin
 from firebase_admin import credentials, firestore
 
-# ---------- Firebase Setup ----------
-cred = credentials.Certificate("db_key.json")  # Your Firebase service account key
-try:
-    firebase_admin.get_app()
-except ValueError:
+# ---------- Firebase Initialization ----------
+if not firebase_admin._apps:
+    cred = credentials.Certificate(st.secrets["firebase"])
     firebase_admin.initialize_app(cred)
 
 db = firestore.client()
 
-# ---------- Email validation ----------
-def is_valid_email(email):
-    pattern = r"^[\w\.-]+@[\w\.-]+\.\w+$"
-    return re.match(pattern, email)
-
-# ---------- Register User ----------
-def register_user(email, password, nickname, dob):
-    if not email or not password or not nickname or not dob:
-        st.error("All fields are required.")
-        return
-
-    if not is_valid_email(email):
-        st.error("Please enter a valid email address.")
-        return
-
-    if len(password) < 6:
-        st.error("Password must be at least 6 characters long.")
-        return
-
-    doc_ref = db.collection("users").document(email)
-    if doc_ref.get().exists:
-        st.error("This email is already registered.")
-        return
-
-    try:
-        doc_ref.set({
-            "email": email,
-            "password": password,  # You should hash this in production!
-            "nickname": nickname,
-            "dob": dob
-        })
-        st.success("🎉 Registration successful. Please log in.")
-    except Exception as e:
-        st.error(f"Database error: {e}")
-
-# ---------- Login User ----------
+# ---------- Helper Functions ----------
 def login_user(email, password):
     doc_ref = db.collection("users").document(email)
     doc = doc_ref.get()
     if doc.exists:
         user_data = doc.to_dict()
         if user_data.get("password") == password:
-            st.session_state.current_user_email = email
-            st.success("✅ Logged in successfully!")
-            st.rerun()
+            st.success(f"Welcome back, {user_data.get('name')}!")
         else:
-            st.error("❌ Invalid email or password.")
+            st.error("Incorrect password.")
     else:
-        st.error("❌ Invalid email or password.")
+        st.error("User not found.")
 
-# ---------- Init session state ----------
-if "current_user_email" not in st.session_state:
-    st.session_state.current_user_email = None
+def show_registration_form():
+    st.subheader("Register New Account")
+    with st.form("register_form"):
+        name = st.text_input("Name")
+        email = st.text_input("Email")
+        password = st.text_input("Password", type="password")
+        confirm_password = st.text_input("Confirm Password", type="password")
+        dob = st.date_input("Date of Birth")
+
+        submitted = st.form_submit_button("Register")
+        if submitted:
+            if password != confirm_password:
+                st.error("Passwords do not match.")
+                return
+            if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
+                st.error("Invalid email address.")
+                return
+
+            doc_ref = db.collection("users").document(email)
+            if doc_ref.get().exists:
+                st.warning("Email already registered.")
+                return
+
+            doc_ref.set({
+                "name": name,
+                "email": email,
+                "password": password,
+                "dob": dob.strftime("%Y-%m-%d"),
+                "created_at": datetime.datetime.now().isoformat()
+            })
+            st.success("Registration successful! You can now login.")
+
+# ---------- Streamlit App ----------
+st.set_page_config(page_title="Login App", page_icon="🔐")
+
+st.title("🔐 Firebase Login System")
+
 if "show_register" not in st.session_state:
     st.session_state.show_register = False
 
-# ---------- App ----------
-st.title("🔐 User Login & Registration (Firebase Version)")
-
-# ---------- User logged in ----------
-if st.session_state.current_user_email:
-    st.success(f"Welcome, {st.session_state.current_user_email}!")
-
-    doc = db.collection("users").document(st.session_state.current_user_email).get()
-    if doc.exists:
-        user_info = doc.to_dict()
-        st.write(f"**Nickname:** {user_info.get('nickname')}")
-        st.write(f"**Date of Birth:** {user_info.get('dob')}")
-
-    if st.button("🚪 Logout"):
-        st.session_state.current_user_email = None
-        st.rerun()
-
-# ---------- Registration Form ----------
-elif st.session_state.show_register:
-    st.subheader("📝 Register")
-
-    with st.form("register_form"):
-        email = st.text_input("Email")
-        password = st.text_input("Password", type="password")
-        nickname = st.text_input("Nickname")
-        dob = st.date_input(
-            "Date of Birth",
-            min_value=datetime.date(1900, 1, 1),
-            max_value=datetime.date.today(),
-            value=datetime.date(2000, 1, 1)
-        )
-        submitted = st.form_submit_button("Register")
-
-        if submitted:
-            register_user(email, password, nickname, str(dob))
-
-    if st.button("⬅️ Back to Login"):
+if st.session_state.show_register:
+    show_registration_form()
+    if st.button("🔙 Back to Login"):
         st.session_state.show_register = False
-        st.rerun()
-
-# ---------- Login Form ----------
 else:
-    st.subheader("🔑 Login")
-
+    st.subheader("Login")
     with st.form("login_form"):
         email = st.text_input("Email")
         password = st.text_input("Password", type="password")
@@ -123,4 +80,3 @@ else:
 
     if st.button("📝 Register"):
         st.session_state.show_register = True
-        st.rerun()

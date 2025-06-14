@@ -1,11 +1,17 @@
 import streamlit as st
-import sqlite3
 import re
 import datetime
+import firebase_admin
+from firebase_admin import credentials, firestore
 
-# ---------- Setup DB ----------
-conn = sqlite3.connect("users.db", check_same_thread=False)
-cursor = conn.cursor()
+# ---------- Firebase Setup ----------
+cred = credentials.Certificate("db_key.json")  # Your Firebase service account key
+try:
+    firebase_admin.get_app()
+except ValueError:
+    firebase_admin.initialize_app(cred)
+
+db = firestore.client()
 
 # ---------- Email validation ----------
 def is_valid_email(email):
@@ -26,29 +32,34 @@ def register_user(email, password, nickname, dob):
         st.error("Password must be at least 6 characters long.")
         return
 
-    cursor.execute("SELECT email FROM users WHERE email = ?", (email,))
-    if cursor.fetchone():
+    doc_ref = db.collection("users").document(email)
+    if doc_ref.get().exists:
         st.error("This email is already registered.")
         return
 
     try:
-        cursor.execute("""
-            INSERT INTO users (email, password, nickname, dob) 
-            VALUES (?, ?, ?, ?)
-        """, (email, password, nickname, dob))
-        conn.commit()
+        doc_ref.set({
+            "email": email,
+            "password": password,  # You should hash this in production!
+            "nickname": nickname,
+            "dob": dob
+        })
         st.success("🎉 Registration successful. Please log in.")
-    except sqlite3.Error as e:
+    except Exception as e:
         st.error(f"Database error: {e}")
 
 # ---------- Login User ----------
 def login_user(email, password):
-    cursor.execute("SELECT password FROM users WHERE email = ?", (email,))
-    result = cursor.fetchone()
-    if result and result[0] == password:
-        st.session_state.current_user_email = email
-        st.success("✅ Logged in successfully!")
-        st.rerun()
+    doc_ref = db.collection("users").document(email)
+    doc = doc_ref.get()
+    if doc.exists:
+        user_data = doc.to_dict()
+        if user_data.get("password") == password:
+            st.session_state.current_user_email = email
+            st.success("✅ Logged in successfully!")
+            st.rerun()
+        else:
+            st.error("❌ Invalid email or password.")
     else:
         st.error("❌ Invalid email or password.")
 
@@ -59,17 +70,17 @@ if "show_register" not in st.session_state:
     st.session_state.show_register = False
 
 # ---------- App ----------
-st.title("🔐 User Login & Registration")
+st.title("🔐 User Login & Registration (Firebase Version)")
 
 # ---------- User logged in ----------
 if st.session_state.current_user_email:
     st.success(f"Welcome, {st.session_state.current_user_email}!")
 
-    cursor.execute("SELECT nickname, dob FROM users WHERE email = ?", (st.session_state.current_user_email,))
-    user_info = cursor.fetchone()
-    if user_info:
-        st.write(f"**Nickname:** {user_info[0]}")
-        st.write(f"**Date of Birth:** {user_info[1]}")
+    doc = db.collection("users").document(st.session_state.current_user_email).get()
+    if doc.exists:
+        user_info = doc.to_dict()
+        st.write(f"**Nickname:** {user_info.get('nickname')}")
+        st.write(f"**Date of Birth:** {user_info.get('dob')}")
 
     if st.button("🚪 Logout"):
         st.session_state.current_user_email = None
@@ -85,9 +96,9 @@ elif st.session_state.show_register:
         nickname = st.text_input("Nickname")
         dob = st.date_input(
             "Date of Birth",
-            min_value=datetime.date(1900, 1, 1),        
-            max_value=datetime.date.today(),             
-            value=datetime.date(2000, 1, 1)              
+            min_value=datetime.date(1900, 1, 1),
+            max_value=datetime.date.today(),
+            value=datetime.date(2000, 1, 1)
         )
         submitted = st.form_submit_button("Register")
 
@@ -113,4 +124,3 @@ else:
     if st.button("📝 Register"):
         st.session_state.show_register = True
         st.rerun()
-        

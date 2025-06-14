@@ -4,19 +4,6 @@ import datetime
 import firebase_admin 
 from firebase_admin import credentials, firestore
 
-import os
-
-# Get the current working directory
-cwd = os.getcwd()
-print(f"📂 Current Working Directory: {cwd}\n")
-
-# List all files and directories in the current directory
-files = os.listdir(cwd)
-
-# Print them
-print("📄 Files and Folders:")
-for file in files:
-    print(f" - {file}")
 
 
 # ---------- Firebase Setup ----------
@@ -86,6 +73,20 @@ if "show_register" not in st.session_state:
 
 # ---------- App ----------
 st.title("🔐 User Login & Registration (Firebase Version)")
+import os
+
+# Get the current working directory
+cwd = os.getcwd()
+print(f"📂 Current Working Directory: {cwd}\n")
+
+# List all files and directories in the current directory
+files = os.listdir(cwd)
+
+# Print them
+print("📄 Files and Folders:")
+for file in files:
+    print(f" - {file}")
+
 
 # ---------- User logged in ----------
 if st.session_state.current_user_email:

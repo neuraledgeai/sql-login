@@ -1,2 +1,2 @@
 streamlit
-firebase_admin
+pymongo[srv]==3.12

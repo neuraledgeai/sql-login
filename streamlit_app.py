@@ -1,82 +1,38 @@
 import streamlit as st
-import re
-import datetime
-import firebase_admin
-from firebase_admin import credentials, firestore
+import pymongo
+from pymongo import MongoClient
 
-# ---------- Firebase Initialization ----------
-if not firebase_admin._apps:
-    cred = credentials.Certificate("db_key.json")
-    firebase_admin.initialize_app(cred)
+st.title("MongoDB Test: Create a Sample User")
 
-db = firestore.client()
+try:
+    # Read MongoDB URI from Streamlit secrets
+    uri = st.secrets["URI"]  # Make sure your secrets.toml has a 'mongodb' section with 'uri'
+    
+    # Connect to MongoDB
+    client = MongoClient(uri)
 
-# ---------- Helper Functions ----------
-def login_user(email, password):
-    doc_ref = db.collection("users").document(email)
-    doc = doc_ref.get()
-    if doc.exists:
-        user_data = doc.to_dict()
-        if user_data.get("password") == password:
-            st.success(f"Welcome back, {user_data.get('name')}!")
-        else:
-            st.error("Incorrect password.")
-    else:
-        st.error("User not found.")
+    # Access your database and collection
+    db = client["asti"]            # Replace with your desired database name
+    users = db["users"]    # Replace with your desired collection name
 
-def show_registration_form():
-    st.subheader("Register New Account")
-    with st.form("register_form"):
-        name = st.text_input("Name")
-        email = st.text_input("Email")
-        password = st.text_input("Password", type="password")
-        confirm_password = st.text_input("Confirm Password", type="password")
-        dob = st.date_input("Date of Birth")
+    # Create a sample user
+    sample_user = {
+        "name": "John Doe",
+        "email": "john@example.com",
+        "created_at": st.session_state.get("timestamp", "2025-06-14")
+    }
 
-        submitted = st.form_submit_button("Register")
-        if submitted:
-            if password != confirm_password:
-                st.error("Passwords do not match.")
-                return
-            if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
-                st.error("Invalid email address.")
-                return
+    # Insert the user
+    insert_result = users.insert_one(sample_user)
+    st.success(f"Inserted user with ID: {insert_result.inserted_id}")
 
-            doc_ref = db.collection("users").document(email)
-            if doc_ref.get().exists:
-                st.warning("Email already registered.")
-                return
+    # Display all users
+    st.subheader("Current Users in Database:")
+    for user in users.find():
+        st.json(user)
 
-            doc_ref.set({
-                "name": name,
-                "email": email,
-                "password": password,
-                "dob": dob.strftime("%Y-%m-%d"),
-                "created_at": datetime.datetime.now().isoformat()
-            })
-            st.success("Registration successful! You can now login.")
+    # Close connection
+    client.close()
 
-# ---------- Streamlit App ----------
-st.set_page_config(page_title="Login App", page_icon="🔐")
-
-st.title("🔐 Firebase Login System")
-
-if "show_register" not in st.session_state:
-    st.session_state.show_register = False
-
-if st.session_state.show_register:
-    show_registration_form()
-    if st.button("🔙 Back to Login"):
-        st.session_state.show_register = False
-else:
-    st.subheader("Login")
-    with st.form("login_form"):
-        email = st.text_input("Email")
-        password = st.text_input("Password", type="password")
-        submitted = st.form_submit_button("Login")
-
-        if submitted:
-            login_user(email, password)
-
-    if st.button("📝 Register"):
-        st.session_state.show_register = True
+except Exception as e:
+    st.error(f"Error: {e}")

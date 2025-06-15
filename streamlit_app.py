@@ -6,14 +6,14 @@ st.title("MongoDB Test: Create a Sample User")
 
 try:
     # Read MongoDB URI from Streamlit secrets
-    uri = st.secrets["URI"]  # Make sure your secrets.toml has a 'mongodb' section with 'uri'
+    uri = st.secrets["URI"] 
     
     # Connect to MongoDB
     client = MongoClient(uri)
 
     # Access your database and collection
-    db = client["asti"]            # Replace with your desired database name
-    users = db["users"]    # Replace with your desired collection name
+    db = client["asti"]           
+    users = db["users"]   me
 
     # Create a sample user
     sample_user = {

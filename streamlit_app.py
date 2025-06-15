@@ -1,38 +1,27 @@
 import streamlit as st
-import pymongo
 from pymongo import MongoClient
+import certifi
 
-st.title("MongoDB Test: Create a Sample User")
+st.title("MongoDB Atlas Connection Test")
 
 try:
-    # Read MongoDB URI from Streamlit secrets
-    uri = st.secrets["URI"] 
-    
-    # Connect to MongoDB
-    client = MongoClient(uri)
+    # Load MongoDB URI from secrets
+    uri = st.secrets["URI"]
 
-    # Access your database and collection
-    db = client["asti"]           
-    users = db["users"]  
+    # Connect to MongoDB securely using CA file
+    client = MongoClient(uri, tlsCAFile=certifi.where())
 
-    # Create a sample user
-    sample_user = {
-        "name": "John Doe",
-        "email": "john@example.com",
-        "created_at": st.session_state.get("timestamp", "2025-06-14")
-    }
+    db = client["test_db"]
+    collection = db["users"]
 
-    # Insert the user
-    insert_result = users.insert_one(sample_user)
-    st.success(f"Inserted user with ID: {insert_result.inserted_id}")
+    # Insert a test document
+    result = collection.insert_one({"name": "Anoop", "email": "anoop@example.com"})
+    st.success(f"User inserted with ID: {result.inserted_id}")
 
-    # Display all users
-    st.subheader("Current Users in Database:")
-    for user in users.find():
-        st.json(user)
-
-    # Close connection
-    client.close()
+    # Show all users
+    st.write("📄 Existing Users:")
+    for doc in collection.find():
+        st.json(doc)
 
 except Exception as e:
-    st.error(f"Error: {e}")
+    st.error(f"❌ Connection failed: {e}")

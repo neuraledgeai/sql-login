@@ -50,7 +50,7 @@ def login_user(email, password):
     user = collection.find_one({"email": email})
     if user and user.get("password") == password:
         st.session_state.current_user_email = email
-        st.success("✅ Logged in successfully!")
+        # st.success("✅ Logged in successfully!")
         st.rerun()
     else:
         st.error("❌ Invalid email or password.")

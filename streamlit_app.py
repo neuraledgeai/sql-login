@@ -11,7 +11,7 @@ try:
     # Connect to MongoDB securely using CA file
     client = MongoClient(uri, tlsCAFile=certifi.where())
 
-    db = client["test_db"]
+    db = client["asti"]
     collection = db["users"]
 
     # Insert a test document

@@ -13,7 +13,7 @@ try:
 
     # Access your database and collection
     db = client["asti"]           
-    users = db["users"]   me
+    users = db["users"]  
 
     # Create a sample user
     sample_user = {

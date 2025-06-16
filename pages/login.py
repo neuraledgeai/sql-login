@@ -26,15 +26,16 @@ if "current_user_email" not in st.session_state:
 st.title("🔑 Login")
 
 if st.session_state.current_user_email:
-    st.success(f"Welcome back, {st.session_state.current_user_email}!")
-    user_info = collection.find_one({"email": st.session_state.current_user_email})
-    if user_info:
-        st.write(f"**Nickname:** {user_info.get('nickname')}")
-        st.write(f"**Date of Birth:** {user_info.get('dob')}")
+    st.switch_page("chat/register.py")
+    # st.success(f"Welcome back, {st.session_state.current_user_email}!")
+    # user_info = collection.find_one({"email": st.session_state.current_user_email})
+    # if user_info:
+    #    st.write(f"**Nickname:** {user_info.get('nickname')}")
+    #    st.write(f"**Date of Birth:** {user_info.get('dob')}")
 
-    if st.button("🚪 Logout"):
-        st.session_state.current_user_email = None
-        st.rerun()
+    # if st.button("🚪 Logout"):
+    #     st.session_state.current_user_email = None
+    #     st.rerun()
 else:
     with st.form("login_form"):
         email = st.text_input("Email")

@@ -26,7 +26,7 @@ if "current_user_email" not in st.session_state:
 st.title("🔑 Login")
 
 if st.session_state.current_user_email:
-    st.switch_page("chat/register.py")
+    st.switch_page("pages/chat.py")
     # st.success(f"Welcome back, {st.session_state.current_user_email}!")
     # user_info = collection.find_one({"email": st.session_state.current_user_email})
     # if user_info:

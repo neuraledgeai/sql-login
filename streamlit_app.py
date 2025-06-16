@@ -63,6 +63,7 @@ if "show_register" not in st.session_state:
 
 # --- App Title ---
 st.title("🔐 User Login & Registration")
+st.sidebar.page_link("pages/Contact_us.py", label="Chat", icon="💬")
 
 # --- User Logged In View ---
 if st.session_state.current_user_email:

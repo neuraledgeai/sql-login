@@ -11,10 +11,13 @@ client = MongoClient(uri, tlsCAFile=certifi.where())
 db = client["asti"]
 collection = db["users"]
 
-# --- Email Validation ---
-def is_valid_email(email):
+# --- Email Validation & Cleanup ---
+def clean_and_validate_email(email):
+    email = email.strip()
     pattern = r"^[\w\.-]+@[\w\.-]+\.\w+$"
-    return re.match(pattern, email)
+    if not re.match(pattern, email):
+        return None
+    return email
 
 # --- Register User Function ---
 def register_user(email, password, nickname, dob):
@@ -22,7 +25,7 @@ def register_user(email, password, nickname, dob):
         st.error("All fields are required.")
         return
 
-    if not is_valid_email(email):
+    if not clean_and_validate_email(email):
         st.error("Please enter a valid email address.")
         return
 

@@ -64,4 +64,4 @@ with st.form("register_form"):
         register_user(email, password, nickname, str(dob))
 
 if st.button("⬅️ Back to Login"):
-    st.switch_page("pages/Login.py")
+    st.switch_page("pages/login.py")

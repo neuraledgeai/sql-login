@@ -45,4 +45,4 @@ else:
             login_user(email, password)
 
     if st.button("📝 Register"):
-        st.switch_page("pages/Register.py")
+        st.switch_page("pages/register.py")

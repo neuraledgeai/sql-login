@@ -61,10 +61,6 @@ st.markdown("""
             font-size: 2rem;
             margin-bottom: 1.5rem;
         }
-        .register-form .stTextInput > label,
-        .register-form .stDateInput > label {
-            font-weight: 600;
-        }
     </style>
 """, unsafe_allow_html=True)
 
@@ -72,7 +68,6 @@ st.markdown("""
 st.markdown('<div class="register-title">📝 Register</div>', unsafe_allow_html=True)
 
 with st.form("register_form"):
-    st.markdown('<div class="register-form">', unsafe_allow_html=True)
     email = st.text_input("📧 Email")
     password = st.text_input("🔒 Password", type="password")
     confirm_password = st.text_input("🔁 Confirm Password", type="password")

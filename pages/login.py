@@ -66,16 +66,17 @@ else:
             else:
                 login_user(email, password)
 
-    col1, col2 = st.columns([1, 1])
-    with col1:
-        if st.button("📝 Register"):
-            st.switch_page("pages/register.py")
-    with col2:
-        form_url = "https://forms.gle/YOUR_FORM_LINK_HERE"
+    form_url = "https://forms.gle/YOUR_FORM_LINK_HERE"
         st.markdown(
             f'<div style="text-align:right; margin-top:0.5rem;"><a href="{form_url}" target="_blank">🔁 Forgot Password?</a></div>',
             unsafe_allow_html=True
         )
+    # col1, col2 = st.columns([1, 1])
+    # with col1:
+    #    if st.button("📝 Register"):
+    #        st.switch_page("pages/register.py")
+    # with col2:
+        
 
 st.markdown('</div>', unsafe_allow_html=True)  # close container
 

@@ -60,7 +60,7 @@ with st.form("register_form"):
     email = st.text_input("Email")
     password = st.text_input("Password", type="password")
     confirm_password = st.text_input("Confirm Password", type="password")
-    nickname = st.text_input("Nickname")
+    nickname = st.text_input("Name")
     dob = st.date_input(
         "Date of Birth",
         min_value=datetime.date(1900, 1, 1),
@@ -71,6 +71,3 @@ with st.form("register_form"):
 
     if submitted:
         register_user(email, password, confirm_password, nickname, str(dob))
-
-if st.button("⬅️ Back to Login"):
-    st.switch_page("pages/login.py")

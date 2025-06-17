@@ -39,10 +39,6 @@ st.markdown("""
             font-size: 2rem;
             margin-bottom: 1.5rem;
         }
-        .button-row {
-            display: flex;
-            justify-content: space-between;
-        }
     </style>
 """, unsafe_allow_html=True)
 

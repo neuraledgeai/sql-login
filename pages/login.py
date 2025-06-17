@@ -34,14 +34,6 @@ if "current_user_email" not in st.session_state:
 # --- Custom Styling ---
 st.markdown("""
     <style>
-        .login-container {
-            max-width: 400px;
-            margin: 2rem auto 0 auto;
-            padding: 2rem;
-            background-color: #f9f9f9;
-            border-radius: 10px;
-            box-shadow: 0px 2px 8px rgba(0,0,0,0.05);
-        }
         .login-title {
             text-align: center;
             font-size: 2rem;
@@ -56,7 +48,7 @@ st.markdown("""
 
 
 # --- UI ---
-st.markdown('<div class="login-container">', unsafe_allow_html=True)
+# st.markdown('<div class="login-container">', unsafe_allow_html=True)
 st.markdown('<div class="login-title">🔐 Login</div>', unsafe_allow_html=True)
 
 if st.session_state.current_user_email:

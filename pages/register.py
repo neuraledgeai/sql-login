@@ -20,17 +20,22 @@ def clean_and_validate_email(email):
     return email
 
 # --- Register User Function ---
-def register_user(email, password, nickname, dob):
-    if not email or not password or not nickname or not dob:
+def register_user(email, password, confirm_password, nickname, dob):
+    if not email or not password or not confirm_password or not nickname or not dob:
         st.error("All fields are required.")
         return
 
-    if not clean_and_validate_email(email):
+    email = clean_and_validate_email(email)
+    if not email:
         st.error("Please enter a valid email address.")
         return
 
     if len(password) < 6:
         st.error("Password must be at least 6 characters long.")
+        return
+
+    if password != confirm_password:
+        st.error("Passwords do not match.")
         return
 
     if collection.find_one({"email": email}):
@@ -54,6 +59,7 @@ st.title("📝 Register")
 with st.form("register_form"):
     email = st.text_input("Email")
     password = st.text_input("Password", type="password")
+    confirm_password = st.text_input("Confirm Password", type="password")
     nickname = st.text_input("Nickname")
     dob = st.date_input(
         "Date of Birth",
@@ -64,7 +70,7 @@ with st.form("register_form"):
     submitted = st.form_submit_button("Register")
 
     if submitted:
-        register_user(email, password, nickname, str(dob))
+        register_user(email, password, confirm_password, nickname, str(dob))
 
 if st.button("⬅️ Back to Login"):
     st.switch_page("pages/login.py")

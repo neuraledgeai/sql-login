@@ -36,11 +36,11 @@ st.markdown("""
     <style>
         .login-container {
             max-width: 400px;
-            margin: auto;
+            margin: 2rem auto 0 auto;
             padding: 2rem;
             background-color: #f9f9f9;
             border-radius: 10px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.05);
+            box-shadow: 0px 2px 8px rgba(0,0,0,0.05);
         }
         .login-title {
             text-align: center;

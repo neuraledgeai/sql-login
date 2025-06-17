@@ -31,16 +31,40 @@ def login_user(email, password):
 if "current_user_email" not in st.session_state:
     st.session_state.current_user_email = None
 
+# --- Custom Styling ---
+st.markdown("""
+    <style>
+        .login-container {
+            max-width: 400px;
+            margin: auto;
+            padding: 2rem;
+            background-color: #f9f9f9;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.05);
+        }
+        .login-title {
+            text-align: center;
+            font-size: 2rem;
+            margin-bottom: 1.5rem;
+        }
+        .button-row {
+            display: flex;
+            justify-content: space-between;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
 # --- UI ---
-st.title("🔑 Login")
+st.markdown('<div class="login-container">', unsafe_allow_html=True)
+st.markdown('<div class="login-title">🔐 Login</div>', unsafe_allow_html=True)
 
 if st.session_state.current_user_email:
     st.switch_page("pages/chat.py")
 else:
     with st.form("login_form"):
-        raw_email = st.text_input("Email")
-        password = st.text_input("Password", type="password")
-        submitted = st.form_submit_button("Login")
+        raw_email = st.text_input("📧 Email")
+        password = st.text_input("🔒 Password", type="password")
+        submitted = st.form_submit_button("🔑 Login")
 
         if submitted:
             email = clean_and_validate_email(raw_email)
@@ -49,15 +73,15 @@ else:
             else:
                 login_user(email, password)
 
-    # Add Register and Forgot Password Links
     col1, col2 = st.columns([1, 1])
     with col1:
         if st.button("📝 Register"):
             st.switch_page("pages/register.py")
     with col2:
-        # Replace this with your actual form URL
-        reset_form_url = "https://forms.gle/YOUR_FORM_LINK_HERE"
+        form_url = "https://forms.gle/YOUR_FORM_LINK_HERE"
         st.markdown(
-            f'<div style="text-align:right"><a href="{reset_form_url}" target="_blank">🔒 Forgot Password?</a></div>',
+            f'<div style="text-align:right; margin-top:0.5rem;"><a href="{form_url}" target="_blank">🔁 Forgot Password?</a></div>',
             unsafe_allow_html=True
         )
+
+st.markdown('</div>', unsafe_allow_html=True)  # close container

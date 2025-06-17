@@ -53,21 +53,51 @@ def register_user(email, password, confirm_password, nickname, dob):
     except Exception as e:
         st.error(f"Database error: {e}")
 
+# --- Custom CSS Styling ---
+st.markdown("""
+    <style>
+        .register-title {
+            text-align: center;
+            font-size: 2rem;
+            margin-bottom: 1.5rem;
+        }
+        .register-form .stTextInput > label,
+        .register-form .stDateInput > label {
+            font-weight: 600;
+        }
+        .back-button {
+            display: flex;
+            justify-content: center;
+            margin-top: 1.5rem;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
 # --- UI ---
-st.title("📝 Register")
+st.markdown('<div class="register-title">📝 Register</div>', unsafe_allow_html=True)
 
 with st.form("register_form"):
-    email = st.text_input("Email")
-    password = st.text_input("Password", type="password")
-    confirm_password = st.text_input("Confirm Password", type="password")
-    nickname = st.text_input("Name")
+    st.markdown('<div class="register-form">', unsafe_allow_html=True)
+    email = st.text_input("📧 Email")
+    password = st.text_input("🔒 Password", type="password")
+    confirm_password = st.text_input("🔁 Confirm Password", type="password")
+    nickname = st.text_input("👤 Name")
     dob = st.date_input(
-        "Date of Birth",
+        "🎂 Date of Birth",
         min_value=datetime.date(1900, 1, 1),
         max_value=datetime.date.today(),
         value=datetime.date(2000, 1, 1)
     )
-    submitted = st.form_submit_button("Register")
+    submitted = st.form_submit_button("✅ Register")
+    st.markdown('</div>', unsafe_allow_html=True)
 
     if submitted:
         register_user(email, password, confirm_password, nickname, str(dob))
+
+# --- Back to Login Button ---
+st.markdown(
+    '<div class="back-button">'
+    '<a href="#" onclick="window.location.href = `/pages/login.py`;">⬅️ Back to Login</a>'
+    '</div>',
+    unsafe_allow_html=True
+)

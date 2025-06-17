@@ -65,11 +65,6 @@ st.markdown("""
         .register-form .stDateInput > label {
             font-weight: 600;
         }
-        .back-button {
-            display: flex;
-            justify-content: center;
-            margin-top: 1.5rem;
-        }
     </style>
 """, unsafe_allow_html=True)
 
@@ -93,11 +88,3 @@ with st.form("register_form"):
 
     if submitted:
         register_user(email, password, confirm_password, nickname, str(dob))
-
-# --- Back to Login Button ---
-st.markdown(
-    '<div class="back-button">'
-    '<a href="#" onclick="window.location.href = `/pages/login.py`;">⬅️ Back to Login</a>'
-    '</div>',
-    unsafe_allow_html=True
-)

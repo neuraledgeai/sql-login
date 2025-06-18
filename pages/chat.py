@@ -28,8 +28,12 @@ if "current_user_email" not in st.session_state or not st.session_state.current_
     st.error("Session expired or user not logged in.")
     st.stop()
 
-# --- Fetch User Info ---
-user_info = collection.find_one({"email": st.session_state.current_user_email})
+# --- Fetch User Info (Cached) ---
+@st.cache_resource
+def get_user_info(email):
+    return collection.find_one({"email": email})
+
+user_info = get_user_info(st.session_state.current_user_email)
 
 # --- Streamlit Page Configuration ---
 st.set_page_config(

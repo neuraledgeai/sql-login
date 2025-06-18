@@ -14,8 +14,12 @@ from pymongo import MongoClient
 import certifi
 
 # --- Setup MongoDB Connection ---
-uri = st.secrets["URI"]
-client = MongoClient(uri, tlsCAFile=certifi.where())
+@st.cache_resource
+def get_mongo_client():
+    uri = st.secrets["URI"]
+    return MongoClient(uri, tlsCAFile=certifi.where())
+# uri = st.secrets["URI"]
+client = get_mongo_client()
 db = client["asti"]
 collection = db["users"]
 
@@ -39,9 +43,17 @@ st.set_page_config(
 st.sidebar.page_link("pages/chat.py", label="Chat", icon="💬")
 
 # --- API Key & Client Initialization ---
+@st.cache_resource
+def get_together_client():
+    return Together(api_key=st.secrets["API_KEY"])
+
+@st.cache_resource
+def get_elevenlabs_client():
+    return ElevenLabs(api_key=st.secrets["ELEVENLABS_API_KEY"])
+    
 # api_key = environ.get("API_KEY")
-api_key = st.secrets["API_KEY"]
-client = Together(api_key=api_key)
+# api_key = st.secrets["API_KEY"]
+client = get_together_client()
 # serp_api_key = environ.get("SERP_API_KEY")
 serp_api_key = st.secrets["SERP_API_KEY"]
 # elevenlabs_api_key = environ.get("ELEVENLABS_API_KEY")
@@ -282,7 +294,7 @@ if st.session_state.get("document_content"):
         language = st.radio("Select output language:", ["English", "Hindi"], index=1)
 
         if st.button("Generate Voice Overview"):
-            elevenlabs = ElevenLabs(api_key = elevenlabs_api_key)
+            elevenlabs = get_elevenlabs_client()
             with st.spinner("Generating voice script..."):
                 prompt = (
                     f"The user uploaded a document. Please create a short, powerful, and engaging voice overview summarizing it "

@@ -1,3 +1,8 @@
 streamlit
 pymongo[srv]==3.12
 certifi
+together
+PyPDF2
+python-docx
+google-search-results
+elevenlabs

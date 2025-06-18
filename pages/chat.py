@@ -31,7 +31,8 @@ user_info = collection.find_one({"email": st.session_state.current_user_email})
 st.set_page_config(
     page_title="Asti",
     layout="wide",
-    page_icon="🌟"
+    page_icon="🌟",
+    initial_sidebar_state = "expanded"
 )
 
 # --- Sidebar Navigation ---

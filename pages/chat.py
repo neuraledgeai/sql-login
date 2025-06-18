@@ -35,7 +35,7 @@ st.set_page_config(
 )
 
 # --- Sidebar Navigation ---
-# st.sidebar.page_link("pages/chat.py", label="Chat", icon="💬")
+st.sidebar.page_link("pages/chat.py", label="Chat", icon="💬")
 
 # --- API Key & Client Initialization ---
 # api_key = environ.get("API_KEY")

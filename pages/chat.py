@@ -60,7 +60,8 @@ serp_api_key = st.secrets["SERP_API_KEY"]
 elevenlabs_api_key = st.secrets["ELEVENLABS_API_KEY"]
 
 # --- LLM Model Definitions ---
-META_MODEL = "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free"
+# META_MODEL = "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free"
+META_MODEL = "lgai/exaone-deep-32b"
 DEEPSEEK_MODEL = "deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free"
 
 # --- Web Search Function ---

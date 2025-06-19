@@ -150,8 +150,9 @@ st.session_state.selected_model = META_MODEL
 
 # --- Chat History Display ---
 for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
+    if message["role"] in {"user", "assistant"}:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
 
 # --- Input Placeholder ---
 if model_choice == "Web Search":

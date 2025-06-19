@@ -228,12 +228,12 @@ if user_input:
         messages_with_context.extend(st.session_state.messages)
 
         try:
-            with st.spinner("✍️ Asti is thinking..."):
-                stream = client.chat.completions.create(
+             stream = client.chat.completions.create(
                     model=st.session_state.selected_model,
                     messages=messages_with_context,
                     stream=True,
                 )
+    
             for chunk in stream:
                 if chunk.choices and chunk.choices[0].delta.content:
                     full_response += chunk.choices[0].delta.content

@@ -36,7 +36,7 @@ def get_user_info(email):
 user_info = get_user_info(st.session_state.current_user_email)
 
 # --- Handle Chat Function ---
-def handle_chat(user_input: str):
+def handle_chat(user_input: str, model_choice: str):
     st.session_state.messages.append({"role": "user", "content": user_input})
     st.session_state.prefill_input = ""
 
@@ -46,7 +46,7 @@ def handle_chat(user_input: str):
     response_placeholder = st.empty()
     full_response = ""
 
-    if st.segmented_control_value == "Web Search":
+    if model_choice == "Web Search":
         decision_prompt = (
             "You must decide if this query requires a web search: "
             f"'{user_input}'. Reply only with 'YES' or 'NO'."
@@ -239,7 +239,7 @@ if user_input is None and prefill_text:
     user_input = prefill_text
 
 if user_input:
-    handle_chat(user_input)
+    handle_chat(user_input, model_choice)
 
 # --- Voice Overview Feature ---
 if st.session_state.get("document_content"):

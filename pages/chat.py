@@ -45,11 +45,6 @@ st.set_page_config(
 
 # --- Sidebar Navigation ---
 st.sidebar.page_link("pages/chat.py", label="Chat", icon="💬")
-if st.sidebar.button("🗑️ Clear Chat"):
-    st.session_state.messages = []
-    st.session_state.prefill_input = ""
-    st.session_state.init_prompt_injected = None  # ← Reset flag
-    st.rerun()
 
 
 # --- API Key & Client Initialization ---
@@ -233,11 +228,12 @@ if user_input:
         messages_with_context.extend(st.session_state.messages)
 
         try:
-            stream = client.chat.completions.create(
-                model=st.session_state.selected_model,
-                messages=messages_with_context,
-                stream=True,
-            )
+            with st.spinner("✍️ Asti is thinking..."):
+                stream = client.chat.completions.create(
+                    model=st.session_state.selected_model,
+                    messages=messages_with_context,
+                    stream=True,
+                )
             for chunk in stream:
                 if chunk.choices and chunk.choices[0].delta.content:
                     full_response += chunk.choices[0].delta.content

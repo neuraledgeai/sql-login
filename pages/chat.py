@@ -104,6 +104,12 @@ if "document_content" not in st.session_state:
     st.session_state.document_content = None
 if "selected_model" not in st.session_state:
     st.session_state.selected_model = META_MODEL
+    # --- Inject Initial System Prompt Once ---
+    INITIAL_SYSTEM_PROMPT = "You're Asti, an expert study assistant. Help the user by answering clearly, concisely, and informatively."
+    if "init_prompt_injected" not in st.session_state:
+        st.session_state.messages.insert(0, {"role": "system", "content": INITIAL_SYSTEM_PROMPT})
+        st.session_state.init_prompt_injected = True
+
 
 # --- File Upload Section ---
 with st.expander("📄 Upload Your Study Material (Optional)", expanded=True):

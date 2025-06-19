@@ -45,6 +45,12 @@ st.set_page_config(
 
 # --- Sidebar Navigation ---
 st.sidebar.page_link("pages/chat.py", label="Chat", icon="💬")
+if st.sidebar.button("🗑️ Clear Chat"):
+    st.session_state.messages = []
+    st.session_state.prefill_input = ""
+    st.session_state.init_prompt_injected = False  # ← Reset flag
+    st.rerun()
+
 
 # --- API Key & Client Initialization ---
 @st.cache_resource

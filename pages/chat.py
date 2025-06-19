@@ -35,86 +35,6 @@ def get_user_info(email):
 
 user_info = get_user_info(st.session_state.current_user_email)
 
-# --- Handle Chat Function ---
-@st.cache_resource
-def handle_chat(user_input: str, model_choice: str):
-    st.session_state.messages.append({"role": "user", "content": user_input})
-    st.session_state.prefill_input = ""
-
-    with st.chat_message("user"):
-        st.markdown(user_input)
-
-    response_placeholder = st.empty()
-    full_response = ""
-    response_placeholder.markdown("🤖 _Thinking..._")
-
-    if model_choice == "Web Search":
-        decision_prompt = (
-            "You must decide if this query requires a web search: "
-            f"'{user_input}'. Reply only with 'YES' or 'NO'."
-        )
-        decision_response = client.chat.completions.create(
-            model=META_MODEL,
-            messages=[{"role": "system", "content": decision_prompt}]
-        )
-        decision_text = decision_response.choices[0].message.content.strip().upper()
-
-        if decision_text == "YES":
-            refine_prompt = f"User's request: {user_input}. Generate a single concise search query."
-            refine_response = client.chat.completions.create(
-                model=META_MODEL,
-                messages=[{"role": "system", "content": refine_prompt}]
-            )
-            search_query = refine_response.choices[0].message.content.strip()
-            search_results = fetch_snippets(search_query, serp_api_key)
-
-            final_prompt = f"Query: {user_input}. Search Results: {search_results}. Respond informatively."
-            stream = client.chat.completions.create(
-                model=META_MODEL,
-                messages=[{"role": "system", "content": final_prompt}],
-                stream=True,
-            )
-            for chunk in stream:
-                if chunk.choices and chunk.choices[0].delta.content:
-                    full_response += chunk.choices[0].delta.content
-                    response_placeholder.markdown(full_response)
-        else:
-            fallback_prompt = f"User: {user_input}. Respond naturally."
-            fallback_response = client.chat.completions.create(
-                model=META_MODEL,
-                messages=[{"role": "system", "content": fallback_prompt}],
-                stream=True,
-            )
-            for chunk in fallback_response:
-                if chunk.choices and chunk.choices[0].delta.content:
-                    full_response += chunk.choices[0].delta.content
-                    response_placeholder.markdown(full_response)
-
-        st.session_state.messages.append({"role": "assistant", "content": full_response})
-
-    else:
-        messages_with_context = [{"role": "system", "content": st.session_state.document_content}] if st.session_state.document_content else []
-        messages_with_context.extend(st.session_state.messages)
-
-        try:
-            stream = client.chat.completions.create(
-                model=st.session_state.selected_model,
-                messages=messages_with_context,
-                stream=True,
-            )
-            for chunk in stream:
-                if chunk.choices and chunk.choices[0].delta.content:
-                    full_response += chunk.choices[0].delta.content
-
-            clean_response = full_response.strip()
-            response_placeholder.markdown(clean_response)
-            st.session_state.messages.append({"role": "assistant", "content": clean_response})
-        except Exception as e:
-            error_message = str(e)
-            if "Input validation error" in error_message and "tokens" in error_message:
-                st.warning("⚠️ Too much text, token limit reached. Start a new chat to continue.")
-
-
 # --- Streamlit Page Configuration ---
 st.set_page_config(
     page_title="Asti",
@@ -241,7 +161,80 @@ if user_input is None and prefill_text:
     user_input = prefill_text
 
 if user_input:
-    handle_chat(user_input, model_choice)
+    st.session_state.messages.append({"role": "user", "content": user_input})
+    st.session_state.prefill_input = ""
+
+    with st.chat_message("user"):
+        st.markdown(user_input)
+
+    response_placeholder = st.empty()
+    full_response = ""
+
+    if model_choice == "Web Search":
+        decision_prompt = (
+            "You must decide if this query requires a web search: "
+            f"'{user_input}'. Reply only with 'YES' or 'NO'."
+        )
+        decision_response = client.chat.completions.create(
+            model=META_MODEL,
+            messages=[{"role": "system", "content": decision_prompt}]
+        )
+        decision_text = decision_response.choices[0].message.content.strip().upper()
+
+        if decision_text == "YES":
+            refine_prompt = f"User's request: {user_input}. Generate a single concise search query."
+            refine_response = client.chat.completions.create(
+                model=META_MODEL,
+                messages=[{"role": "system", "content": refine_prompt}]
+            )
+            search_query = refine_response.choices[0].message.content.strip()
+            search_results = fetch_snippets(search_query, serp_api_key)
+
+            final_prompt = f"Query: {user_input}. Search Results: {search_results}. Respond informatively."
+            stream = client.chat.completions.create(
+                model=META_MODEL,
+                messages=[{"role": "system", "content": final_prompt}],
+                stream=True,
+            )
+            for chunk in stream:
+                if chunk.choices and chunk.choices[0].delta.content:
+                    full_response += chunk.choices[0].delta.content
+                    response_placeholder.markdown(full_response)
+        else:
+            fallback_prompt = f"User: {user_input}. Respond naturally."
+            fallback_response = client.chat.completions.create(
+                model=META_MODEL,
+                messages=[{"role": "system", "content": fallback_prompt}],
+                stream=True,
+            )
+            for chunk in fallback_response:
+                if chunk.choices and chunk.choices[0].delta.content:
+                    full_response += chunk.choices[0].delta.content
+                    response_placeholder.markdown(full_response)
+
+        st.session_state.messages.append({"role": "assistant", "content": full_response})
+
+    else:
+        messages_with_context = [{"role": "system", "content": st.session_state.document_content}] if st.session_state.document_content else []
+        messages_with_context.extend(st.session_state.messages)
+
+        try:
+            stream = client.chat.completions.create(
+                model=st.session_state.selected_model,
+                messages=messages_with_context,
+                stream=True,
+            )
+            for chunk in stream:
+                if chunk.choices and chunk.choices[0].delta.content:
+                    full_response += chunk.choices[0].delta.content
+
+            clean_response = full_response.strip()
+            response_placeholder.markdown(clean_response)
+            st.session_state.messages.append({"role": "assistant", "content": clean_response})
+        except Exception as e:
+            error_message = str(e)
+            if "Input validation error" in error_message and "tokens" in error_message:
+                st.warning("⚠️ Too much text, token limit reached. Start a new chat to continue.")
 
 # --- Voice Overview Feature ---
 if st.session_state.get("document_content"):

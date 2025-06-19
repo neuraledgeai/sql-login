@@ -36,6 +36,7 @@ def get_user_info(email):
 user_info = get_user_info(st.session_state.current_user_email)
 
 # --- Handle Chat Function ---
+@st.cache_resource
 def handle_chat(user_input: str, model_choice: str):
     st.session_state.messages.append({"role": "user", "content": user_input})
     st.session_state.prefill_input = ""

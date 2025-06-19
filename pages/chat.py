@@ -45,6 +45,7 @@ def handle_chat(user_input: str, model_choice: str):
 
     response_placeholder = st.empty()
     full_response = ""
+    response_placeholder.markdown("🤖 _Thinking..._")
 
     if model_choice == "Web Search":
         decision_prompt = (

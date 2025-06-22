@@ -20,6 +20,9 @@ def clean_and_validate_email(email):
     return email
 
 # --- Register User Function ---
+import random
+
+# --- Register User Function ---
 def register_user(email, password, confirm_password, nickname, dob):
     if not email or not password or not confirm_password or not nickname or not dob:
         st.error("All fields are required.")
@@ -42,16 +45,24 @@ def register_user(email, password, confirm_password, nickname, dob):
         st.error("This email is already registered.")
         return
 
+    # Generate 6-digit safety PIN
+    safety_pin = random.randint(100000, 999999)
+
     try:
         collection.insert_one({
             "email": email,
             "password": password,
             "nickname": nickname,
-            "dob": dob
+            "dob": dob,
+            "recent_topic": None,
+            "topics_learned": None,
+            "learning_style": None,
+            "safety_pin": safety_pin
         })
         st.success("🎉 Registration successful. Please log in.")
     except Exception as e:
         st.error(f"Database error: {e}")
+
 
 # --- Custom CSS Styling ---
 st.markdown("""

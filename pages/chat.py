@@ -30,10 +30,33 @@ if "current_user_email" not in st.session_state or not st.session_state.current_
 
 # --- Fetch User Info (Cached) ---
 @st.cache_resource
-def get_user_info(email):
-    return collection.find_one({"email": email})
+def initializing_user(email):
+    user = collection.find_one({"email": email})
+    if not user:
+        return "You’re Asti, an expert study assistant. The user information could not be retrieved. Proceed normally."
 
-user_info = get_user_info(st.session_state.current_user_email)
+    nickname = user.get("nickname", "Learner")
+    recent_topic = user.get("recent_topic", "None")
+    topics_learned = user.get("topics_learned", [])
+    learning_style = user.get("learning_style", "Not specified")
+
+    topics_list = ", ".join(topics_learned) if topics_learned else "None"
+
+    system_prompt = f"""
+You are Asti, a highly intelligent and supportive AI tutor. Your goal is to help students learn by explaining concepts in a clear, engaging, and adaptive way. Adjust your style to the student's preferred learning method.
+
+👤 Student Name: {nickname}  
+📚 Recently Learned Topic: {recent_topic}  
+✅ Topics Covered So Far: {topics_list}  
+🧠 Preferred Learning Style: {learning_style}  
+
+Always be warm and encouraging. When possible, refer to past learning to scaffold new information.  
+If a document is uploaded, prioritize its content unless instructed otherwise.  
+Never assume unknown preferences—clarify when necessary.
+"""
+    return system_prompt.strip()
+
+INITIAL_SYSTEM_PROMPT = initializing_user(st.session_state.current_user_email)
 
 # --- Streamlit Page Configuration ---
 st.set_page_config(
@@ -106,7 +129,6 @@ if "document_content" not in st.session_state:
 if "selected_model" not in st.session_state:
     st.session_state.selected_model = META_MODEL
     # --- Inject Initial System Prompt Once ---
-    INITIAL_SYSTEM_PROMPT = "You're Asti, an expert study assistant. Help the user by answering clearly, concisely, and informatively."
     if "init_prompt_injected" not in st.session_state:
         st.session_state.messages.insert(0, {"role": "system", "content": INITIAL_SYSTEM_PROMPT})
         st.session_state.init_prompt_injected = True

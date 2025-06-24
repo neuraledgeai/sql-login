@@ -61,7 +61,7 @@ Never assume unknown preferences—clarify when necessary.
 INITIAL_SYSTEM_PROMPT = initializing_user(st.session_state.current_user_email)
 
 # --- Update User Learning Profile Function ---
-@st.cache_resource
+# 
 def update_user_learning_profile():
     now = time.time()
     last_checked = st.session_state.get("last_update_check", 0)

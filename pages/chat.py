@@ -61,6 +61,7 @@ Never assume unknown preferences—clarify when necessary.
 INITIAL_SYSTEM_PROMPT = initializing_user(st.session_state.current_user_email)
 
 # --- Update User Learning Profile Function ---
+@st.cache_resource
 def update_user_learning_profile():
     now = time.time()
     last_checked = st.session_state.get("last_update_check", 0)
@@ -270,7 +271,6 @@ if user_input is None and prefill_text:
 if user_input:
     st.session_state.messages.append({"role": "user", "content": user_input})
     st.session_state.prefill_input = ""
-    update_user_learning_profile()
 
     with st.chat_message("user"):
         st.markdown(user_input)
@@ -339,6 +339,7 @@ if user_input:
             clean_response = full_response.strip()
             response_placeholder.markdown(clean_response)
             st.session_state.messages.append({"role": "assistant", "content": clean_response})
+            update_user_learning_profile()
         except Exception as e:
             error_message = str(e)
             if "Input validation error" in error_message and "tokens" in error_message:

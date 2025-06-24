@@ -63,87 +63,75 @@ INITIAL_SYSTEM_PROMPT = initializing_user(st.session_state.current_user_email)
 
 # --- Update User Learning Profile Function ---
 def update_user_learning_profile():
-    # Run this only once every 5 minutes
+    # --- Rate Limit: Only run once every 5 minutes ---
     now = time.time()
     last_update = st.session_state.get("last_profile_update_time", 0)
     if now - last_update < 300:  # 5 minutes = 300 seconds
         return
 
-    # Step 1: Compile full chat history as a string
-    full_chat = "\n".join(
-        f"{msg['role'].capitalize()}: {msg['content']}" 
-        for msg in st.session_state.messages 
-        if msg["role"] in {"user", "assistant"}
-    )
+    chat_history = ""
+    for msg in st.session_state.messages:
+        if msg["role"] in {"user", "assistant"}:
+            chat_history += f"{msg['role'].capitalize()}: {msg['content']}\n"
 
-    # Step 2: Ask the model to extract the profile data
-    profile_prompt = f"""
-You are a system that monitors a student's learning progress from their chat history.
+    if not chat_history.strip():
+        return  # Nothing to analyze
 
-Here is the entire conversation:
+    # --- Prompt asking for structured JSON ---
+    prompt = f"""
+You are an assistant analyzing a user's learning chat history to extract structured metadata.
+Please extract the following 3 things from the conversation:
 
-{full_chat}
+1. recent_topic → The most recent topic discussed.
+2. topics_learned → A list of key topics the user has learned.
+3. learning_style → A brief summary of how the user prefers to learn.
 
-Now based on this, extract the following information in PURE JSON ONLY:
-- recent_topic: The most recent topic discussed or learned.
-- topics_learned: A list of all topics discussed or learned in this session.
-- learning_style: The student's apparent learning style or preferences.
+Only return a valid JSON object with these **exact field names** and nothing else. Do not include explanations.
 
-Reply ONLY in this format (JSON, no extra text):
-
+Example format:
 {{
-  "recent_topic": "string",
-  "topics_learned": ["list", "of", "topics"],
-  "learning_style": "string"
+  "recent_topic": "Supply and Demand",
+  "topics_learned": ["Supply and Demand", "Elasticity", "Utility Theory"],
+  "learning_style": "Prefers clear, structured explanations and visual analogies."
 }}
+
+Here is the chat history:
+{chat_history}
 """
 
     try:
-        profile_response = client.chat.completions.create(
+        response = client.chat.completions.create(
             model=META_MODEL,
-            messages=[{"role": "system", "content": profile_prompt}]
+            messages=[{"role": "system", "content": prompt}]
         )
-        raw_output = profile_response.choices[0].message.content.strip()
 
-        # Parse the output safely
-        parsed = json.loads(raw_output)
+        raw_output = response.choices[0].message.content.strip()
 
-        # Extract fields
+        # --- Extract JSON only (in case model wraps extra text) ---
+        json_start = raw_output.find("{")
+        json_end = raw_output.rfind("}") + 1
+        json_str = raw_output[json_start:json_end]
+
+        parsed = json.loads(json_str)
+
         recent_topic = parsed.get("recent_topic")
         topics_learned = parsed.get("topics_learned")
         learning_style = parsed.get("learning_style")
 
-        # Get the current user from DB
-        user_email = st.session_state.current_user_email
-        current_user = collection.find_one({"email": user_email})
+        if recent_topic or topics_learned or learning_style:
+            collection.update_one(
+                {"email": st.session_state.current_user_email},
+                {"$set": {
+                    "recent_topic": recent_topic,
+                    "topics_learned": topics_learned,
+                    "learning_style": learning_style
+                }}
+            )
+            st.toast("🧠 Learning profile updated!", icon="✅")
+            st.session_state.last_profile_update_time = now
 
-        # Merge topics_learned into existing list
-        if isinstance(topics_learned, list):
-            existing_topics = current_user.get("topics_learned") or []
-            # Ensure it's a list
-            if not isinstance(existing_topics, list):
-                existing_topics = []
-            updated_topics = list(set(existing_topics + topics_learned))
-        else:
-            updated_topics = current_user.get("topics_learned")  # Leave unchanged
-
-        # Prepare the update dictionary
-        update_fields = {
-            "recent_topic": recent_topic,
-            "learning_style": learning_style,
-            "topics_learned": updated_topics
-        }
-
-        # Update the user document in MongoDB
-        collection.update_one({"email": user_email}, {"$set": update_fields})
-
-        # Save timestamp of this update
-        st.session_state.last_profile_update_time = now
-
-    except json.JSONDecodeError as e:
-        st.warning(f"⚠️ Couldn't parse model output as JSON: {e}")
     except Exception as e:
-        st.error(f"❌ Failed to update learning profile: {e}")
+        st.warning(f"⚠️ Couldn't parse model output as JSON:\n\n{e}\n\nModel said:\n```{raw_output}```")
 
 
 # --- Streamlit Page Configuration ---

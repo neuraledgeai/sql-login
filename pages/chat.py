@@ -12,6 +12,8 @@ from elevenlabs import ElevenLabs
 import streamlit as st
 from pymongo import MongoClient
 import certifi
+import time
+from datetime import datetime, timedelta
 
 # --- Setup MongoDB Connection ---
 @st.cache_resource
@@ -58,6 +60,80 @@ Never assume unknown preferences—clarify when necessary.
 
 INITIAL_SYSTEM_PROMPT = initializing_user(st.session_state.current_user_email)
 
+# --- Update User Learning Profile Function ---
+def update_user_learning_profile():
+    now = time.time()
+    last_checked = st.session_state.get("last_update_check", 0)
+
+    if now - last_checked < 300:  # 5 minutes
+        return
+
+    # Prepare chat transcript
+    chat_transcript = "\n".join([
+        f"{msg['role'].capitalize()}: {msg['content']}"
+        for msg in st.session_state.messages
+        if msg["role"] in {"user", "assistant"}
+    ])
+
+    analysis_prompt = (
+        "You are an expert learning assistant analyzing the following conversation.\n\n"
+        f"{chat_transcript}\n\n"
+        "Based on this, provide the following:\n"
+        "1. What is the most recent topic discussed?\n"
+        "2. List of all distinct topics the user has learned so far.\n"
+        "3. Describe the user's learning style briefly.\n\n"
+        "Respond in this format:\n"
+        "recent_topic: <one-line string>\n"
+        "topics_learned: [list, of, topics]\n"
+        "learning_style: <one-line string>"
+    )
+
+    try:
+        result = client.chat.completions.create(
+            model=META_MODEL,
+            messages=[{"role": "system", "content": analysis_prompt}]
+        )
+        content = result.choices[0].message.content.strip()
+        
+        # Simple extraction (can improve this with regex parsing)
+        lines = content.splitlines()
+        recent_topic = None
+        topics_learned = []
+        learning_style = None
+
+        for line in lines:
+            if line.lower().startswith("recent_topic:"):
+                recent_topic = line.split(":", 1)[1].strip()
+            elif line.lower().startswith("topics_learned:"):
+                topics_str = line.split(":", 1)[1].strip()
+                topics_learned = eval(topics_str) if topics_str.startswith("[") else []
+            elif line.lower().startswith("learning_style:"):
+                learning_style = line.split(":", 1)[1].strip()
+
+        # Update MongoDB
+        update_fields = {}
+        if recent_topic:
+            update_fields["recent_topic"] = recent_topic
+        if learning_style:
+            update_fields["learning_style"] = learning_style
+        if topics_learned:
+            collection.update_one(
+                {"email": st.session_state.current_user_email},
+                {
+                    "$set": update_fields,
+                    "$addToSet": {"topics_learned": {"$each": topics_learned}}
+                }
+            )
+        else:
+            collection.update_one(
+                {"email": st.session_state.current_user_email},
+                {"$set": update_fields}
+            )
+
+        st.session_state.last_update_check = now
+
+    except Exception as e:
+        st.warning(f"⚠️ Learning update failed: {e}")
 # --- Streamlit Page Configuration ---
 st.set_page_config(
     page_title="Asti",
@@ -194,6 +270,7 @@ if user_input is None and prefill_text:
 if user_input:
     st.session_state.messages.append({"role": "user", "content": user_input})
     st.session_state.prefill_input = ""
+    update_user_learning_profile()
 
     with st.chat_message("user"):
         st.markdown(user_input)

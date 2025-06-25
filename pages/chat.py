@@ -96,7 +96,7 @@ def update_user_learning_profile():
         )
         content = result.choices[0].message.content.strip()
 
-        # --- Simple extraction ---
+        # --- Extract values ---
         lines = content.splitlines()
         recent_topic = None
         learning_style = None
@@ -108,23 +108,33 @@ def update_user_learning_profile():
                 learning_style = line.split(":", 1)[1].strip()
 
         if recent_topic:
-            # Fetch current topics_learned string
+            # --- Fetch user and existing topics ---
             user_doc = collection.find_one({"email": st.session_state.current_user_email})
             current_topics = user_doc.get("topics_learned", "")
-            updated_topics = f"{current_topics}, {recent_topic}".strip(", ")
+            
+            # Convert to list and sanitize
+            if isinstance(current_topics, str):
+                topic_list = [t.strip() for t in current_topics.split(",") if t.strip() and t.strip().lower() != "none"]
+            else:
+                topic_list = []
 
-            # Update all 3 fields
+            # Add new topic if not already there
+            if recent_topic not in topic_list:
+                topic_list.append(recent_topic)
+
+            updated_topics_string = ", ".join(topic_list)
+
+            # --- Update in DB ---
             collection.update_one(
                 {"email": st.session_state.current_user_email},
                 {"$set": {
                     "recent_topic": recent_topic,
-                    "topics_learned": updated_topics,
+                    "topics_learned": updated_topics_string,
                     "learning_style": learning_style
                 }}
             )
-            st.toast("✅ Learning profile updated")
 
-            # Reset timer
+            st.toast("✅ Learning profile updated")
             st.session_state.last_profile_update_time = now
 
     except Exception as e:
@@ -195,6 +205,8 @@ def read_word(file):
     return f"User uploaded a Word document. Here are the contents of it:\n\n{text}"
 
 # --- Session State Initialization ---
+if "last_profile_update_time" not in st.session_state:
+    st.session_state.last_profile_update_time = time.time()
 if "messages" not in st.session_state:
     st.session_state.messages = []
 if "document_content" not in st.session_state:

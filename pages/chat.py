@@ -13,8 +13,7 @@ import streamlit as st
 from pymongo import MongoClient
 import certifi
 import time
-# from datetime import datetime, timedelta
-import json
+
 
 # --- Setup MongoDB Connection ---
 @st.cache_resource
@@ -63,75 +62,73 @@ INITIAL_SYSTEM_PROMPT = initializing_user(st.session_state.current_user_email)
 
 # --- Update User Learning Profile Function ---
 def update_user_learning_profile():
-    # --- Rate Limit: Only run once every 5 minutes ---
+    # --- Run only once every 5 minutes ---
     now = time.time()
     last_update = st.session_state.get("last_profile_update_time", 0)
-    if now - last_update < 300:  # 5 minutes = 300 seconds
+    if now - last_update < 300:
         return
 
+    # --- Collect chat history ---
     chat_history = ""
     for msg in st.session_state.messages:
         if msg["role"] in {"user", "assistant"}:
             chat_history += f"{msg['role'].capitalize()}: {msg['content']}\n"
 
     if not chat_history.strip():
-        return  # Nothing to analyze
+        return
 
-    # --- Prompt asking for structured JSON ---
-    prompt = f"""
-You are an assistant analyzing a user's learning chat history to extract structured metadata.
-Please extract the following 3 things from the conversation:
-
-1. recent_topic → The most recent topic discussed.
-2. topics_learned → A list of key topics the user has learned.
-3. learning_style → A brief summary of how the user prefers to learn.
-
-Only return a valid JSON object with these **exact field names** and nothing else. Do not include explanations.
-
-Example format:
-{{
-  "recent_topic": "Supply and Demand",
-  "topics_learned": ["Supply and Demand", "Elasticity", "Utility Theory"],
-  "learning_style": "Prefers clear, structured explanations and visual analogies."
-}}
-
-Here is the chat history:
-{chat_history}
-"""
+    # --- Prompt for analysis ---
+    analysis_prompt = (
+        "You are an expert learning assistant analyzing the following conversation.\n\n"
+        f"{chat_history}\n\n"
+        "Based on this, provide the following:\n"
+        "1. What is the most recent topic discussed?\n"
+        "2. Describe the user's learning style briefly.\n\n"
+        "Respond in this format:\n"
+        "recent_topic: <one-line string>\n"
+        "learning_style: <one-line string>"
+    )
 
     try:
-        response = client.chat.completions.create(
+        result = client.chat.completions.create(
             model=META_MODEL,
-            messages=[{"role": "system", "content": prompt}]
+            messages=[{"role": "system", "content": analysis_prompt}]
         )
+        content = result.choices[0].message.content.strip()
 
-        raw_output = response.choices[0].message.content.strip()
+        # --- Simple extraction ---
+        lines = content.splitlines()
+        recent_topic = None
+        learning_style = None
 
-        # --- Extract JSON only (in case model wraps extra text) ---
-        json_start = raw_output.find("{")
-        json_end = raw_output.rfind("}") + 1
-        json_str = raw_output[json_start:json_end]
+        for line in lines:
+            if line.lower().startswith("recent_topic:"):
+                recent_topic = line.split(":", 1)[1].strip()
+            elif line.lower().startswith("learning_style:"):
+                learning_style = line.split(":", 1)[1].strip()
 
-        parsed = json.loads(json_str)
+        if recent_topic:
+            # Fetch current topics_learned string
+            user_doc = collection.find_one({"email": st.session_state.current_user_email})
+            current_topics = user_doc.get("topics_learned", "")
+            updated_topics = f"{current_topics}, {recent_topic}".strip(", ")
 
-        recent_topic = parsed.get("recent_topic")
-        topics_learned = parsed.get("topics_learned")
-        learning_style = parsed.get("learning_style")
-
-        if recent_topic or topics_learned or learning_style:
+            # Update all 3 fields
             collection.update_one(
                 {"email": st.session_state.current_user_email},
                 {"$set": {
                     "recent_topic": recent_topic,
-                    "topics_learned": topics_learned,
+                    "topics_learned": updated_topics,
                     "learning_style": learning_style
                 }}
             )
-            st.toast("🧠 Learning profile updated!", icon="✅")
+            st.toast("✅ Learning profile updated")
+
+            # Reset timer
             st.session_state.last_profile_update_time = now
 
     except Exception as e:
-        st.warning(f"⚠️ Couldn't parse model output as JSON:\n\n{e}\n\nModel said:\n```{raw_output}```")
+        st.warning(f"⚠️ Error during learning profile update: {e}")
 
 
 # --- Streamlit Page Configuration ---

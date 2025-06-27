@@ -35,28 +35,50 @@ if "current_user_email" not in st.session_state or not st.session_state.current_
 def initializing_user(email):
     user = collection.find_one({"email": email})
     if not user:
-        return "You’re Asti, an expert study assistant. The user information could not be retrieved. Proceed normally."
+        return (
+            "You’re Asti, an expert study assistant. The user information could not be retrieved. "
+            "Proceed normally, and assist the user with warmth and clarity."
+        )
 
-    nickname = user.get("nickname", "Learner")
-    recent_topic = user.get("recent_topic", "None")
-    topics_learned = user.get("topics_learned", [])
-    learning_style = user.get("learning_style", "Not specified")
+    # Extract fields safely
+    nickname = user.get("nickname", "Learner").strip()
+    recent_topic = user.get("recent_topic", "None").strip()
+    topics_learned_raw = user.get("topics_learned", "").strip()
+    learning_style = user.get("learning_style", "Not specified").strip()
 
-    topics_list = ", ".join(topics_learned) if topics_learned else "None"
+    # Clean or normalize potential "null-like" entries
+    if recent_topic.lower() in {"", "none", "null"}:
+        recent_topic = "Not available"
 
+    if topics_learned_raw.lower() in {"", "none", "null"}:
+        topics_learned = "Not available"
+    else:
+        topics_learned = topics_learned_raw
+
+    if learning_style.lower() in {"", "none", "null", "not specified"}:
+        learning_style = "Not identified yet"
+
+    # Final system prompt
     system_prompt = f"""
-You are Asti, a highly intelligent and supportive AI tutor. Your goal is to help students learn by explaining concepts in a clear, engaging, and adaptive way. Adjust your style to the student's preferred learning method.
+You are Asti, an intelligent, warm, and adaptive AI tutor.
 
-👤 Student Name: {nickname}  
-📚 Recently Learned Topic: {recent_topic}  
-✅ Topics Covered So Far: {topics_list}  
-🧠 Preferred Learning Style: {learning_style}  
+Your job is to guide this specific student by understanding their learning journey and preferences.
 
-Always be warm and encouraging. When possible, refer to past learning to scaffold new information.  
-If a document is uploaded, prioritize its content unless instructed otherwise.  
-Never assume unknown preferences—clarify when necessary.
+Student Profile:
+👤 Name: {nickname}
+📚 Most Recent Topic: {recent_topic}
+✅ Topics Learned So Far: {topics_learned}
+🧠 Preferred Learning Style: {learning_style}
+
+Instructions:
+- Always adapt your tone and explanations to the student’s style.
+- Reinforce current learning by referencing related past topics when appropriate.
+- If the user uploads a document, prioritize its content unless told otherwise.
+- Never fabricate preferences — if unsure, gently ask the user.
+- Be concise, friendly, and educational at all times.
 """
     return system_prompt.strip()
+
 
 INITIAL_SYSTEM_PROMPT = initializing_user(st.session_state.current_user_email)
 

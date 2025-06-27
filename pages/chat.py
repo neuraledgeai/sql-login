@@ -31,7 +31,7 @@ if "current_user_email" not in st.session_state or not st.session_state.current_
     st.stop()
 
 # --- Fetch User Info (Cached) ---
-@st.cache_data
+# @st.cache_data
 def initializing_user(email):
     user = collection.find_one({"email": email})
     if not user:

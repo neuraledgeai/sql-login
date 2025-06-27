@@ -79,15 +79,16 @@ def update_user_learning_profile():
 
     # --- Prompt for analysis ---
     analysis_prompt = (
-        "You are an expert learning assistant analyzing the following conversation.\n\n"
+        "You are an expert learning assistant analyzing the following conversation between a student and their AI tutor.\n\n"
         f"{chat_history}\n\n"
-        "Based on this, provide the following:\n"
-        "1. What is the most recent topic discussed?\n"
+        "Based on this entire conversation, provide the following:\n"
+        "1. What is the main topic or subject the user is learning about? (Summarize in 1 concise line.)\n"
         "2. Describe the user's learning style briefly.\n\n"
         "Respond in this format:\n"
         "recent_topic: <one-line string>\n"
         "learning_style: <one-line string>"
     )
+
 
     try:
         result = client.chat.completions.create(

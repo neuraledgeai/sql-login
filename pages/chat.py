@@ -60,7 +60,7 @@ def initializing_user(email):
 
     # Final system prompt
     system_prompt = f"""
-You are Asti, an intelligent, warm, and adaptive AI tutor.
+You are Asti, an intelligent, warm, and personalized learning co-pilot.
 
 Your job is to guide this specific student by understanding their learning journey and preferences.
 

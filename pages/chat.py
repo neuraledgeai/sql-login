@@ -1,4 +1,4 @@
-# chat.py - Asti app optimized for Gemini 2.5 Flash
+# chat.py - Asti app optimized for Gemini
 from google import genai
 from PyPDF2 import PdfReader
 from docx import Document
@@ -66,13 +66,8 @@ Instructions:
     return system_prompt.strip()
 
 INITIAL_SYSTEM_PROMPT = initializing_user(st.session_state.current_user_email)
-
-# ---------------------------
-# Google GenAI setup
-# ---------------------------
-# Configure the API key
-genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-MODEL_NAME = "gemini-1.5-flash" # Use the latest stable model name
+API_KEY = st.secrets["GEMINI_API_KEY"]
+MODEL_NAME = "gemini-1.5-flash"
 
 # ---------------------------
 # Update learning profile
@@ -102,8 +97,8 @@ def update_user_learning_profile():
     )
 
     try:
-        # **FIXED API CALL**
-        model = genai.GenerativeModel(MODEL_NAME)
+        # **CORRECTED API CALL** - Pass API key directly
+        model = genai.GenerativeModel(MODEL_NAME, api_key=API_KEY)
         response = model.generate_content(analysis_prompt)
         content = response.text.strip()
 
@@ -224,16 +219,16 @@ if user_input:
 
     with st.chat_message("assistant"):
         response_placeholder = st.empty()
-        full_response = ""
 
         # ---------------------------
         # Generate response via Gemini
         # ---------------------------
         try:
-            # **FIXED API CALL and PROMPT STRUCTURE**
+            # **CORRECTED API CALL** - Pass API key directly
             model = genai.GenerativeModel(
                 model_name=MODEL_NAME,
-                system_instruction=INITIAL_SYSTEM_PROMPT
+                system_instruction=INITIAL_SYSTEM_PROMPT,
+                api_key=API_KEY
             )
             
             # Combine document content with user input for better context

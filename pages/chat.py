@@ -1,17 +1,14 @@
 # --- chat.py ---
 
 # --- Import Libraries ---
-from together import Together
+from google import genai
 from PyPDF2 import PdfReader
 from docx import Document
 import re
-from os import environ
-from io import BytesIO
 import streamlit as st
 from pymongo import MongoClient
 import certifi
 import time
-
 
 # --- Setup MongoDB Connection ---
 @st.cache_resource
@@ -19,8 +16,8 @@ def get_mongo_client():
     uri = st.secrets["URI"]
     return MongoClient(uri, tlsCAFile=certifi.where())
 
-client = get_mongo_client()
-db = client["asti"]
+client_db = get_mongo_client()
+db = client_db["asti"]
 collection = db["users"]
 
 # --- Check Login State ---
@@ -37,13 +34,12 @@ def initializing_user(email):
             "Proceed normally, and assist the user with warmth and clarity."
         )
 
-    # Extract fields safely (convert None → "")
+    # Extract fields safely
     nickname = (user.get("nickname") or "Learner").strip()
     recent_topic = (user.get("recent_topic") or "").strip()
     topics_learned_raw = (user.get("topics_learned") or "").strip()
     learning_style = (user.get("learning_style") or "").strip()
 
-    # Clean or normalize potential "null-like" entries
     if not recent_topic or recent_topic.lower() in {"none", "null"}:
         recent_topic = "Not available"
 
@@ -55,7 +51,6 @@ def initializing_user(email):
     if not learning_style or learning_style.lower() in {"none", "null", "not specified"}:
         learning_style = "Not identified yet"
 
-    # Final system prompt
     system_prompt = f"""
 You are Asti, an intelligent, helpful, and personalized learning co-pilot.
 
@@ -75,8 +70,16 @@ Instructions:
 """
     return system_prompt.strip()
 
-
 INITIAL_SYSTEM_PROMPT = initializing_user(st.session_state.current_user_email)
+
+# --- Google GenAI Client ---
+@st.cache_resource
+def get_google_client():
+    return genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
+
+client = get_google_client()
+
+MODEL = "gemini-2.5-flash"
 
 # --- Update User Learning Profile Function ---
 def update_user_learning_profile():
@@ -85,7 +88,6 @@ def update_user_learning_profile():
     if now - last_update < 300:
         return
 
-    # --- Collect chat history ---
     chat_history = ""
     for msg in st.session_state.messages:
         if msg["role"] in {"user", "assistant"}:
@@ -106,17 +108,12 @@ def update_user_learning_profile():
     )
 
     try:
-        result = client.chat.completions.create(
-            model=META_MODEL,
-            messages=[{"role": "system", "content": analysis_prompt}]
-        )
-        content = result.choices[0].message.content.strip()
+        temp_chat = client.chats.create(model=MODEL, history=[{"role": "user", "parts": [analysis_prompt]}])
+        response = temp_chat.send_message("Analyze and respond in the required format.")
+        content = response.text.strip()
 
-        lines = content.splitlines()
-        recent_topic = None
-        learning_style = None
-
-        for line in lines:
+        recent_topic, learning_style = None, None
+        for line in content.splitlines():
             if line.lower().startswith("recent_topic:"):
                 recent_topic = line.split(":", 1)[1].strip()
             elif line.lower().startswith("learning_style:"):
@@ -125,15 +122,12 @@ def update_user_learning_profile():
         if recent_topic:
             user_doc = collection.find_one({"email": st.session_state.current_user_email})
             current_topics = user_doc.get("topics_learned", "")
-            
             if isinstance(current_topics, str):
                 topic_list = [t.strip() for t in current_topics.split(",") if t.strip() and t.strip().lower() != "none"]
             else:
                 topic_list = []
-
             if recent_topic not in topic_list:
                 topic_list.append(recent_topic)
-
             updated_topics_string = ", ".join(topic_list)
 
             collection.update_one(
@@ -144,45 +138,25 @@ def update_user_learning_profile():
                     "learning_style": learning_style
                 }}
             )
-
             st.toast("✅ Learning profile updated")
             st.session_state.last_profile_update_time = now
 
     except Exception as e:
         st.warning(f"⚠️ Error during learning profile update: {e}")
 
-
-# --- Streamlit Page Configuration ---
+# --- Streamlit Page Config ---
 st.set_page_config(
     page_title="Asti",
     layout="wide",
     page_icon="🌟",
     initial_sidebar_state="expanded"
 )
-
-# --- Sidebar Navigation ---
 st.sidebar.page_link("pages/chat.py", label="Chat", icon="💬")
 
-
-# --- API Key & Client Initialization ---
-@st.cache_resource
-def get_together_client():
-    return Together(api_key=st.secrets["API_KEY"])
-
-client = get_together_client()
-
-# --- LLM Model Definitions ---
-META_MODEL = "lgai/exaone-3-5-32b-instruct"
-DEEPSEEK_MODEL = "deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free"
-
-# --- Document Text Extraction Functions ---
+# --- Document Text Extraction ---
 def read_pdf(file):
     pdf_reader = PdfReader(file)
-    text = "\n\n".join(
-        page.extract_text().strip()
-        for page in pdf_reader.pages
-        if page.extract_text()
-    )
+    text = "\n\n".join(page.extract_text().strip() for page in pdf_reader.pages if page.extract_text())
     return f"User uploaded a PDF document. Here are the contents of it:\n\n{text}"
 
 def read_word(file):
@@ -190,19 +164,16 @@ def read_word(file):
     text = "\n".join(paragraph.text for paragraph in doc.paragraphs)
     return f"User uploaded a Word document. Here are the contents of it:\n\n{text}"
 
-# --- Session State Initialization ---
+# --- Session State Init ---
 if "last_profile_update_time" not in st.session_state:
     st.session_state.last_profile_update_time = time.time()
 if "messages" not in st.session_state:
     st.session_state.messages = []
 if "document_content" not in st.session_state:
     st.session_state.document_content = None
-if "selected_model" not in st.session_state:
-    st.session_state.selected_model = META_MODEL
-    if "init_prompt_injected" not in st.session_state:
-        st.session_state.messages.insert(0, {"role": "system", "content": INITIAL_SYSTEM_PROMPT})
-        st.session_state.init_prompt_injected = True
-
+if "init_prompt_injected" not in st.session_state:
+    st.session_state.messages.insert(0, {"role": "system", "content": INITIAL_SYSTEM_PROMPT})
+    st.session_state.init_prompt_injected = True
 
 # --- File Upload Section ---
 with st.expander("📄 Upload Your Study Material (Optional)", expanded=True):
@@ -216,22 +187,16 @@ with st.expander("📄 Upload Your Study Material (Optional)", expanded=True):
             st.success("✅ Document uploaded successfully! You can now start chatting.")
 
             col1, col2, col3, col4 = st.columns(4)
-            with col1:
-                if st.button("📄 Summarize"):
-                    st.session_state.prefill_input = "Please provide a concise and *highly readable* summary of the entire contents of the uploaded document."
-            with col2:
-                if st.button("🧠 Make Quiz"):
-                    st.session_state.prefill_input = "Create a comprehensive quiz based *only* on the content of the uploaded document."
-            with col3:
-                if st.button("📚 Explain"):
-                    st.session_state.prefill_input = "Identify and explain *comprehensively* the key concepts and important ideas present in the uploaded document."
-            with col4:
-                if st.button("🗺️ Roadmap"):
-                    st.session_state.prefill_input = "Based on the content of the uploaded document, create a structured learning roadmap..."
-
+            if col1.button("📄 Summarize"):
+                st.session_state.prefill_input = "Please provide a concise and highly readable summary of the uploaded document."
+            if col2.button("🧠 Make Quiz"):
+                st.session_state.prefill_input = "Create a comprehensive quiz based only on the document content."
+            if col3.button("📚 Explain"):
+                st.session_state.prefill_input = "Explain the key concepts and important ideas in the uploaded document."
+            if col4.button("🗺️ Roadmap"):
+                st.session_state.prefill_input = "Based on the uploaded content, create a structured learning roadmap."
         except Exception as e:
             st.error(f"❌ Error reading file: {e}")
-
 
 # --- Chat History Display ---
 for message in st.session_state.messages:
@@ -240,45 +205,36 @@ for message in st.session_state.messages:
             st.markdown(message["content"])
 
 # --- Input Placeholder ---
-if st.session_state.document_content:
-    placeholder = "Ask about your document or chat generally..."
-else:
-    placeholder = "Type your message here..."
-
-# --- Main Chat Input & Response Generation ---
+placeholder = "Ask about your document or chat generally..." if st.session_state.document_content else "Type your message here..."
 prefill_text = st.session_state.get("prefill_input", "")
 user_input = st.chat_input(placeholder)
 if user_input is None and prefill_text:
     user_input = prefill_text
 
+# --- Main Chat Input & Response ---
 if user_input:
     st.session_state.messages.append({"role": "user", "content": user_input})
     st.session_state.prefill_input = ""
-
     with st.chat_message("user"):
         st.markdown(user_input)
 
     response_placeholder = st.empty()
     full_response = ""
 
-    messages_with_context = [{"role": "system", "content": st.session_state.document_content}] if st.session_state.document_content else []
-    messages_with_context.extend(st.session_state.messages)
+    history = []
+    if st.session_state.document_content:
+        history.append({"role": "system", "parts": [st.session_state.document_content]})
+    for msg in st.session_state.messages:
+        history.append({"role": msg["role"], "parts": [msg["content"]]})
 
     try:
-        stream = client.chat.completions.create(
-            model=st.session_state.selected_model,
-            messages=messages_with_context,
-            stream=True,
-        )
-        for chunk in stream:
-            if chunk.choices and chunk.choices[0].delta.content:
-                full_response += chunk.choices[0].delta.content
-
-        clean_response = full_response.strip()
-        response_placeholder.markdown(clean_response)
-        st.session_state.messages.append({"role": "assistant", "content": clean_response})
+        chat = client.chats.create(model=MODEL, history=history)
+        response_stream = chat.send_message_stream(user_input)
+        for chunk in response_stream:
+            if chunk.text:
+                full_response += chunk.text
+                response_placeholder.markdown(full_response)
+        st.session_state.messages.append({"role": "assistant", "content": full_response.strip()})
         update_user_learning_profile()
     except Exception as e:
-        error_message = str(e)
-        if "Input validation error" in error_message and "tokens" in error_message:
-            st.warning("⚠️ Too much text, token limit reached. Start a new chat to continue.")
+        st.error(f"⚠️ Error: {e}")

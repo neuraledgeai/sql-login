@@ -1,9 +1,5 @@
-# chat.py
-# Asti - Streamlit chat app using Google GenAI (Gemini)
-# - No web search, no voice
-# - Robust handling of null DB fields and Gemini system_instruction usage
-
-from google import genai, types
+# chat.py - Asti app fully optimized for Gemini 2.5 Flash
+from google import genai
 from PyPDF2 import PdfReader
 from docx import Document
 import streamlit as st
@@ -31,7 +27,7 @@ if "current_user_email" not in st.session_state or not st.session_state.current_
     st.stop()
 
 # ---------------------------
-# Safe user initialization (no None.strip() problems)
+# Safe user initialization
 # ---------------------------
 def initializing_user(email):
     user = collection.find_one({"email": email})
@@ -41,27 +37,14 @@ def initializing_user(email):
             "Proceed normally, and assist the user with warmth and clarity."
         )
 
-    # Convert None -> "" then strip
     nickname = (user.get("nickname") or "Learner").strip()
     recent_topic_raw = (user.get("recent_topic") or "").strip()
     topics_learned_raw = (user.get("topics_learned") or "").strip()
     learning_style_raw = (user.get("learning_style") or "").strip()
 
-    # Normalize
-    if not recent_topic_raw or recent_topic_raw.lower() in {"none", "null"}:
-        recent_topic = "Not available"
-    else:
-        recent_topic = recent_topic_raw
-
-    if not topics_learned_raw or topics_learned_raw.lower() in {"none", "null"}:
-        topics_learned = "Not available"
-    else:
-        topics_learned = topics_learned_raw
-
-    if not learning_style_raw or learning_style_raw.lower() in {"none", "null", "not specified"}:
-        learning_style = "Not identified yet"
-    else:
-        learning_style = learning_style_raw
+    recent_topic = recent_topic_raw if recent_topic_raw.lower() not in {"", "none", "null"} else "Not available"
+    topics_learned = topics_learned_raw if topics_learned_raw.lower() not in {"", "none", "null"} else "Not available"
+    learning_style = learning_style_raw if learning_style_raw.lower() not in {"", "none", "null", "not specified"} else "Not identified yet"
 
     system_prompt = f"""
 You are Asti, an intelligent, helpful, and personalized learning co-pilot.
@@ -85,7 +68,7 @@ Instructions:
 INITIAL_SYSTEM_PROMPT = initializing_user(st.session_state.current_user_email)
 
 # ---------------------------
-# Google GenAI (Gemini) client
+# Google GenAI (Gemini 2.5 Flash) client
 # ---------------------------
 @st.cache_resource
 def get_genai_client():
@@ -95,21 +78,18 @@ genai_client = get_genai_client()
 MODEL = "gemini-2.5-flash"
 
 # ---------------------------
-# Update learning profile (safe Gemini calls)
+# Update learning profile
 # ---------------------------
 def update_user_learning_profile():
-    # Run only once every 5 minutes
     now = time.time()
     last_update = st.session_state.get("last_profile_update_time", 0)
     if now - last_update < 300:
         return
 
-    # Build combined chat history
     chat_history = ""
     for msg in st.session_state.messages:
         if msg["role"] in {"user", "assistant"}:
             chat_history += f"{msg['role'].capitalize()}: {msg['content']}\n"
-
     if not chat_history.strip():
         return
 
@@ -119,28 +99,24 @@ def update_user_learning_profile():
         "Based on this entire conversation, provide the following:\n"
         "1. What is the main topic or subject the user is learning about? (Summarize in 1 concise line.)\n"
         "2. Describe the user's learning style briefly.\n\n"
-        "Respond in this format exactly (no extra commentary):\n"
+        "Respond in this format exactly:\n"
         "recent_topic: <one-line string>\n"
         "learning_style: <one-line string>"
     )
 
     try:
-        # create a lightweight chat (no prior history required here) and send the analysis prompt
-        temp_chat = genai_client.chats.create(
+        chat = genai_client.chats.create(
             model=MODEL,
-            config=types.GenerateContentConfig(system_instruction=INITIAL_SYSTEM_PROMPT)
+            system_instruction=INITIAL_SYSTEM_PROMPT
         )
 
-        # stream the response and assemble
         full_response = ""
-        stream = temp_chat.send_message_stream(analysis_prompt)
+        stream = chat.send_message_stream(analysis_prompt)
         for chunk in stream:
             if getattr(chunk, "text", None):
                 full_response += chunk.text
-
         content = full_response.strip()
 
-        # Parse response
         recent_topic = None
         learning_style = None
         for line in content.splitlines():
@@ -152,10 +128,7 @@ def update_user_learning_profile():
         if recent_topic:
             user_doc = collection.find_one({"email": st.session_state.current_user_email}) or {}
             current_topics = user_doc.get("topics_learned", "")
-            if isinstance(current_topics, str):
-                topic_list = [t.strip() for t in current_topics.split(",") if t.strip() and t.strip().lower() != "none"]
-            else:
-                topic_list = []
+            topic_list = [t.strip() for t in current_topics.split(",") if t.strip() and t.strip().lower() != "none"] if isinstance(current_topics, str) else []
             if recent_topic not in topic_list:
                 topic_list.append(recent_topic)
             updated_topics_string = ", ".join(topic_list)
@@ -170,41 +143,29 @@ def update_user_learning_profile():
             )
             st.toast("✅ Learning profile updated")
             st.session_state.last_profile_update_time = now
-
     except Exception as e:
         st.warning(f"⚠️ Error during learning profile update: {e}")
 
 # ---------------------------
-# Streamlit page config
+# Streamlit setup
 # ---------------------------
-st.set_page_config(
-    page_title="Asti",
-    layout="wide",
-    page_icon="🌟",
-    initial_sidebar_state="expanded"
-)
+st.set_page_config(page_title="Asti", layout="wide", page_icon="🌟", initial_sidebar_state="expanded")
 st.sidebar.page_link("pages/chat.py", label="Chat", icon="💬")
 
 # ---------------------------
 # Document parsing
 # ---------------------------
 def read_pdf(file):
-    pdf_reader = PdfReader(file)
-    text_pages = []
-    for page in pdf_reader.pages:
-        txt = page.extract_text()
-        if txt:
-            text_pages.append(txt.strip())
-    text = "\n\n".join(text_pages)
-    return f"User uploaded a PDF document. Here are the contents of it:\n\n{text}"
+    reader = PdfReader(file)
+    text_pages = [page.extract_text().strip() for page in reader.pages if page.extract_text()]
+    return f"User uploaded a PDF document. Here are the contents of it:\n\n" + "\n\n".join(text_pages)
 
 def read_word(file):
     doc = Document(file)
-    text = "\n".join(paragraph.text for paragraph in doc.paragraphs)
-    return f"User uploaded a Word document. Here are the contents of it:\n\n{text}"
+    return f"User uploaded a Word document. Here are the contents of it:\n\n" + "\n".join(p.text for p in doc.paragraphs)
 
 # ---------------------------
-# Session state initialization
+# Session state
 # ---------------------------
 if "last_profile_update_time" not in st.session_state:
     st.session_state.last_profile_update_time = time.time()
@@ -214,24 +175,19 @@ if "document_content" not in st.session_state:
     st.session_state.document_content = None
 if "prefill_input" not in st.session_state:
     st.session_state.prefill_input = ""
-if "selected_model" not in st.session_state:
-    st.session_state.selected_model = MODEL
-
-# NOTE: We DO NOT inject the system prompt into st.session_state.messages
-# Gemini expects system_instruction via config, not as a "system" message.
 
 # ---------------------------
-# File Upload UI
+# File uploader UI
 # ---------------------------
 with st.expander("📄 Upload Your Study Material (Optional)", expanded=True):
     uploaded_file = st.file_uploader("Upload a PDF or Word file", type=["pdf", "docx"])
-    if uploaded_file is not None:
+    if uploaded_file:
         try:
             if uploaded_file.name.endswith(".pdf"):
                 st.session_state.document_content = read_pdf(uploaded_file)
             elif uploaded_file.name.endswith(".docx"):
                 st.session_state.document_content = read_word(uploaded_file)
-            st.success("✅ Document uploaded successfully! You can now start chatting.")
+            st.success("✅ Document uploaded successfully!")
 
             col1, col2, col3, col4 = st.columns(4)
             with col1:
@@ -252,29 +208,24 @@ with st.expander("📄 Upload Your Study Material (Optional)", expanded=True):
 # ---------------------------
 # Show chat history
 # ---------------------------
-for message in st.session_state.messages:
-    if message["role"] in {"user", "assistant"}:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
+for msg in st.session_state.messages:
+    if msg["role"] in {"user", "assistant"}:
+        with st.chat_message(msg["role"]):
+            st.markdown(msg["content"])
 
 # ---------------------------
-# Input placeholder & chat_input
+# Chat input
 # ---------------------------
-if st.session_state.document_content:
-    placeholder = "Ask about your document or chat generally..."
-else:
-    placeholder = "Type your message here..."
-
+placeholder = "Ask about your document or chat generally..." if st.session_state.document_content else "Type your message here..."
 prefill_text = st.session_state.get("prefill_input", "")
 user_input = st.chat_input(placeholder)
 if user_input is None and prefill_text:
     user_input = prefill_text
 
 # ---------------------------
-# Main chat logic using Gemini
+# Main chat loop
 # ---------------------------
 if user_input:
-    # Append user's turn to session messages (we will exclude this latest turn from history)
     st.session_state.messages.append({"role": "user", "content": user_input})
     st.session_state.prefill_input = ""
 
@@ -284,43 +235,27 @@ if user_input:
     response_placeholder = st.empty()
     full_response = ""
 
-    # Build history from previous turns ONLY (exclude the last appended user message)
+    # Build history (previous turns + document context)
     history = []
-    # Put document content first (if any) as a user message so the model has it as context
     if st.session_state.document_content:
         history.append({"role": "user", "parts": [st.session_state.document_content]})
-
-    # include all prior messages (excluding the current user_input which is the last entry)
-    prior_messages = st.session_state.messages[:-1]
-    for msg in prior_messages:
+    for msg in st.session_state.messages[:-1]:
         if msg["role"] in {"user", "assistant"}:
             history.append({"role": msg["role"], "parts": [msg["content"]]})
 
     try:
-        chat = genai_client.chats.create(
-            model=st.session_state.selected_model,
-            history=history,
-            config=types.GenerateContentConfig(system_instruction=INITIAL_SYSTEM_PROMPT)
-        )
-
-        # Now send the latest user message and stream the assistant's reply
-        response_stream = chat.send_message_stream(user_input)
-        for chunk in response_stream:
-            # chunk.text is available in the SDK's streaming pieces
+        chat = genai_client.chats.create(model=MODEL, history=history, system_instruction=INITIAL_SYSTEM_PROMPT)
+        stream = chat.send_message_stream(user_input)
+        for chunk in stream:
             if getattr(chunk, "text", None):
                 full_response += chunk.text
-                # stream to UI progressively
                 response_placeholder.markdown(full_response)
 
-        assistant_msg = full_response.strip()
-        st.session_state.messages.append({"role": "assistant", "content": assistant_msg})
-
-        # Update user learning profile (non-blocking style: runs inline but guarded by cooldown)
+        st.session_state.messages.append({"role": "assistant", "content": full_response.strip()})
         update_user_learning_profile()
 
     except Exception as e:
         error_message = str(e)
-        # token related errors often contain 'tokens' or 'Input validation error'
         if "Input validation error" in error_message and "tokens" in error_message:
             st.warning("⚠️ Too much text, token limit reached. Start a new chat to continue.")
         else:

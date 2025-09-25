@@ -68,7 +68,7 @@ Instructions:
 INITIAL_SYSTEM_PROMPT = initializing_user(st.session_state.current_user_email)
 
 # ---------------------------
-# Google GenAI (Gemini 2.5 Flash) client
+# Google GenAI client
 # ---------------------------
 @st.cache_resource
 def get_genai_client():
@@ -105,13 +105,13 @@ def update_user_learning_profile():
     )
 
     try:
-        chat = genai_client.chats.create(model=MODEL, history=[{"role": "system", "parts": [INITIAL_SYSTEM_PROMPT]}])
-        full_response = ""
-        stream = chat.send_message_stream(analysis_prompt)
-        for chunk in stream:
-            if getattr(chunk, "text", None):
-                full_response += chunk.text
-        content = full_response.strip()
+        response = genai_client.models.generate_content(
+            model=MODEL,
+            config={"system_instruction": INITIAL_SYSTEM_PROMPT},
+            contents=analysis_prompt
+        )
+
+        content = response.result[0].content[0].text.strip()
 
         recent_topic = None
         learning_style = None
@@ -231,28 +231,28 @@ if user_input:
     response_placeholder = st.empty()
     full_response = ""
 
-    # Build history (system prompt + document + previous messages)
-    history = [{"role": "system", "parts": [INITIAL_SYSTEM_PROMPT]}]
-    if st.session_state.document_content:
-        history.append({"role": "user", "parts": [st.session_state.document_content]})
-    for msg in st.session_state.messages[:-1]:
-        if msg["role"] in {"user", "assistant"}:
-            history.append({"role": msg["role"], "parts": [msg["content"]]})
-
+    # ---------------------------
+    # Generate response via Gemini 2.5 Flash
+    # ---------------------------
     try:
-        chat = genai_client.chats.create(model=MODEL, history=history)
-        stream = chat.send_message_stream(user_input)
-        for chunk in stream:
-            if getattr(chunk, "text", None):
-                full_response += chunk.text
-                response_placeholder.markdown(full_response)
+        prompt = INITIAL_SYSTEM_PROMPT
+        if st.session_state.document_content:
+            prompt += "\n\nUser document content:\n" + st.session_state.document_content
 
-        st.session_state.messages.append({"role": "assistant", "content": full_response.strip()})
+        response = genai_client.models.generate_content(
+            model=MODEL,
+            config={"system_instruction": prompt},
+            contents=user_input
+        )
+
+        full_response = response.result[0].content[0].text.strip()
+        response_placeholder.markdown(full_response)
+        st.session_state.messages.append({"role": "assistant", "content": full_response})
         update_user_learning_profile()
 
     except Exception as e:
         error_message = str(e)
-        if "Input validation error" in error_message and "tokens" in error_message:
+        if "tokens" in error_message.lower():
             st.warning("⚠️ Too much text, token limit reached. Start a new chat to continue.")
         else:
             st.error(f"⚠️ Error: {error_message}")

@@ -68,14 +68,11 @@ Instructions:
 INITIAL_SYSTEM_PROMPT = initializing_user(st.session_state.current_user_email)
 
 # ---------------------------
-# Google GenAI client
+# Google GenAI setup
 # ---------------------------
-@st.cache_resource
-def get_genai_client():
-    return genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
-
-genai_client = get_genai_client()
-MODEL = "gemini-2.5-flash"
+# Configure the API key
+genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+MODEL_NAME = "gemini-1.5-flash" # Use the latest stable model name
 
 # ---------------------------
 # Update learning profile
@@ -83,7 +80,7 @@ MODEL = "gemini-2.5-flash"
 def update_user_learning_profile():
     now = time.time()
     last_update = st.session_state.get("last_profile_update_time", 0)
-    if now - last_update < 300:
+    if now - last_update < 300: # 5 minutes cooldown
         return
 
     chat_history = ""
@@ -105,13 +102,10 @@ def update_user_learning_profile():
     )
 
     try:
-        response = genai_client.models.generate_content(
-            model=MODEL,
-            config={"system_instruction": INITIAL_SYSTEM_PROMPT},
-            contents=analysis_prompt
-        )
-
-        content = response.result[0].content[0].text.strip()
+        # **FIXED API CALL**
+        model = genai.GenerativeModel(MODEL_NAME)
+        response = model.generate_content(analysis_prompt)
+        content = response.text.strip()
 
         recent_topic = None
         learning_style = None
@@ -154,11 +148,11 @@ st.sidebar.page_link("pages/chat.py", label="Chat", icon="💬")
 def read_pdf(file):
     reader = PdfReader(file)
     text_pages = [page.extract_text().strip() for page in reader.pages if page.extract_text()]
-    return f"User uploaded a PDF document. Here are the contents of it:\n\n" + "\n\n".join(text_pages)
+    return "\n\n".join(text_pages)
 
 def read_word(file):
     doc = Document(file)
-    return f"User uploaded a Word document. Here are the contents of it:\n\n" + "\n".join(p.text for p in doc.paragraphs)
+    return "\n".join(p.text for p in doc.paragraphs)
 
 # ---------------------------
 # Session state
@@ -223,36 +217,46 @@ if user_input is None and prefill_text:
 # ---------------------------
 if user_input:
     st.session_state.messages.append({"role": "user", "content": user_input})
-    st.session_state.prefill_input = ""
+    st.session_state.prefill_input = "" # Clear prefill after use
 
     with st.chat_message("user"):
         st.markdown(user_input)
 
-    response_placeholder = st.empty()
-    full_response = ""
+    with st.chat_message("assistant"):
+        response_placeholder = st.empty()
+        full_response = ""
 
-    # ---------------------------
-    # Generate response via Gemini 2.5 Flash
-    # ---------------------------
-    try:
-        prompt = INITIAL_SYSTEM_PROMPT
-        if st.session_state.document_content:
-            prompt += "\n\nUser document content:\n" + st.session_state.document_content
+        # ---------------------------
+        # Generate response via Gemini
+        # ---------------------------
+        try:
+            # **FIXED API CALL and PROMPT STRUCTURE**
+            model = genai.GenerativeModel(
+                model_name=MODEL_NAME,
+                system_instruction=INITIAL_SYSTEM_PROMPT
+            )
+            
+            # Combine document content with user input for better context
+            final_prompt = user_input
+            if st.session_state.document_content:
+                final_prompt = (
+                    "Here is content from a document the user uploaded:\n\n"
+                    "--- DOCUMENT START ---\n"
+                    f"{st.session_state.document_content}\n"
+                    "--- DOCUMENT END ---\n\n"
+                    f"Now, based on that document, please answer the user's request: {user_input}"
+                )
 
-        response = genai_client.models.generate_content(
-            model=MODEL,
-            config={"system_instruction": prompt},
-            contents=user_input
-        )
+            response = model.generate_content(final_prompt)
+            full_response = response.text.strip()
+            
+            response_placeholder.markdown(full_response)
+            st.session_state.messages.append({"role": "assistant", "content": full_response})
+            update_user_learning_profile()
 
-        full_response = response.result[0].content[0].text.strip()
-        response_placeholder.markdown(full_response)
-        st.session_state.messages.append({"role": "assistant", "content": full_response})
-        update_user_learning_profile()
-
-    except Exception as e:
-        error_message = str(e)
-        if "tokens" in error_message.lower():
-            st.warning("⚠️ Too much text, token limit reached. Start a new chat to continue.")
-        else:
-            st.error(f"⚠️ Error: {error_message}")
+        except Exception as e:
+            error_message = str(e)
+            if "tokens" in error_message.lower():
+                st.warning("⚠️ Too much text, token limit reached. Please clear the document or start a new chat to continue.")
+            else:
+                st.error(f"⚠️ An error occurred: {error_message}")

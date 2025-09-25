@@ -1,4 +1,4 @@
-# chat.py - Asti app fully optimized for Gemini 2.5 Flash
+# chat.py - Asti app optimized for Gemini 2.5 Flash
 from google import genai
 from PyPDF2 import PdfReader
 from docx import Document
@@ -105,11 +105,7 @@ def update_user_learning_profile():
     )
 
     try:
-        chat = genai_client.chats.create(
-            model=MODEL,
-            system_instruction=INITIAL_SYSTEM_PROMPT
-        )
-
+        chat = genai_client.chats.create(model=MODEL, history=[{"role": "system", "parts": [INITIAL_SYSTEM_PROMPT]}])
         full_response = ""
         stream = chat.send_message_stream(analysis_prompt)
         for chunk in stream:
@@ -235,8 +231,8 @@ if user_input:
     response_placeholder = st.empty()
     full_response = ""
 
-    # Build history (previous turns + document context)
-    history = []
+    # Build history (system prompt + document + previous messages)
+    history = [{"role": "system", "parts": [INITIAL_SYSTEM_PROMPT]}]
     if st.session_state.document_content:
         history.append({"role": "user", "parts": [st.session_state.document_content]})
     for msg in st.session_state.messages[:-1]:
@@ -244,7 +240,7 @@ if user_input:
             history.append({"role": msg["role"], "parts": [msg["content"]]})
 
     try:
-        chat = genai_client.chats.create(model=MODEL, history=history, system_instruction=INITIAL_SYSTEM_PROMPT)
+        chat = genai_client.chats.create(model=MODEL, history=history)
         stream = chat.send_message_stream(user_input)
         for chunk in stream:
             if getattr(chunk, "text", None):

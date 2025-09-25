@@ -37,22 +37,22 @@ def initializing_user(email):
             "Proceed normally, and assist the user with warmth and clarity."
         )
 
-    # Extract fields safely
-    nickname = user.get("nickname", "Learner").strip()
-    recent_topic = user.get("recent_topic", "None").strip()
-    topics_learned_raw = user.get("topics_learned", "").strip()
-    learning_style = user.get("learning_style", "Not specified").strip()
+    # Extract fields safely (convert None → "")
+    nickname = (user.get("nickname") or "Learner").strip()
+    recent_topic = (user.get("recent_topic") or "").strip()
+    topics_learned_raw = (user.get("topics_learned") or "").strip()
+    learning_style = (user.get("learning_style") or "").strip()
 
     # Clean or normalize potential "null-like" entries
-    if recent_topic.lower() in {"", "none", "null"}:
+    if not recent_topic or recent_topic.lower() in {"none", "null"}:
         recent_topic = "Not available"
 
-    if topics_learned_raw.lower() in {"", "none", "null"}:
+    if not topics_learned_raw or topics_learned_raw.lower() in {"none", "null"}:
         topics_learned = "Not available"
     else:
         topics_learned = topics_learned_raw
 
-    if learning_style.lower() in {"", "none", "null", "not specified"}:
+    if not learning_style or learning_style.lower() in {"none", "null", "not specified"}:
         learning_style = "Not identified yet"
 
     # Final system prompt
